@@ -1,0 +1,2600 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EKG-Teach – Lehrwerkzeug</title>
+<style>
+  :root {
+    --paper: #fdf6f0;
+    --bg: #f4f0ea;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6259;
+    --border: #d9d2c7;
+    --grid-minor: #f0c4ba;
+    --grid-major: #d97766;
+    --trace: #0a0a0a;
+    --accent: #c72a30;
+    --accent-soft: #f3e3e3;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--bg); color: var(--ink);
+    font-size: 14px;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+  }
+  .panel {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px 18px;
+  }
+  .panel h1 {
+    font-size: 16px; font-weight: 700; margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .panel .subtitle {
+    font-size: 11px; color: var(--muted); margin-bottom: 18px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .section {
+    border-top: 1px solid var(--border);
+    padding: 14px 0;
+    position: relative;
+  }
+  .section:first-of-type { border-top: none; padding-top: 0; }
+  .section h2 {
+    font-size: 11px; font-weight: 700; margin: 0 0 10px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section h2::before {
+    content: ''; display: inline-block;
+    width: 4px; height: 12px; border-radius: 2px;
+    background: var(--accent);
+  }
+  /* Sektions-Akzentfarben für visuelle Navigation */
+  .section.s-pathology h2::before { background: #c72a30; }
+  .section.s-params h2::before { background: #2e74b5; }
+  .section.s-axis h2::before { background: #7b4ba6; }
+  .section.s-display h2::before { background: #5a9c5a; }
+  .section.s-artifacts h2::before { background: #c08400; }
+  .section.s-actions h2::before { background: #1a1a1a; }
+  label {
+    display: block; font-size: 12px; color: var(--muted);
+    margin-bottom: 4px; margin-top: 8px;
+  }
+  label:first-child { margin-top: 0; }
+  select, input[type="search"], input[type="number"], input[type="text"] {
+    width: 100%; padding: 7px 9px; font-size: 13px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: #fff; color: var(--ink);
+    font-family: inherit;
+  }
+  select:focus, input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  input[type="range"] {
+    width: 100%; margin: 4px 0;
+    accent-color: var(--accent);
+  }
+  .slider-row {
+    display: grid; grid-template-columns: 1fr 60px;
+    gap: 10px; align-items: center; margin-bottom: 8px;
+  }
+  .slider-row .val {
+    font-family: 'JetBrains Mono', 'Menlo', monospace;
+    font-size: 12px; text-align: right;
+    color: var(--ink); background: var(--bg);
+    padding: 3px 6px; border-radius: 3px;
+  }
+  .checkbox-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px 0; font-size: 13px;
+  }
+  .checkbox-row input { margin: 0; accent-color: var(--accent); }
+  button {
+    width: 100%; padding: 9px 12px;
+    background: var(--ink); color: #fff;
+    border: none; border-radius: 4px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; margin-top: 6px;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  button:hover { background: var(--accent); }
+  button.secondary {
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover {
+    background: var(--accent-soft); border-color: var(--accent);
+    color: var(--accent);
+  }
+  .button-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .features {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 10px 12px; font-size: 12px; line-height: 1.45;
+    border-radius: 3px; margin-top: 8px;
+  }
+  .features ul { margin: 4px 0 0; padding-left: 18px; }
+  .features li { margin: 2px 0; }
+  .display {
+    background: var(--bg); overflow: auto;
+    padding: 20px; display: flex;
+    justify-content: center; align-items: flex-start;
+  }
+  .canvas-wrap {
+    background: var(--paper);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 2px;
+  }
+  canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .axis-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4px; margin-top: 6px;
+  }
+  .axis-btn {
+    padding: 6px 4px; font-size: 11px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 3px; cursor: pointer; text-align: center;
+  }
+  .axis-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  details summary {
+    cursor: pointer; font-size: 12px; color: var(--muted);
+    padding: 4px 0; user-select: none;
+  }
+  details summary:hover { color: var(--ink); }
+  .footer-note {
+    font-size: 10px; color: var(--muted);
+    padding: 12px 0 0; line-height: 1.5;
+  }
+  /* Dozentenmodus */
+  button.teach {
+    background: var(--accent); color: #fff;
+    margin-top: 10px;
+  }
+  button.teach:hover { background: #a01f25; }
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--panel); border-radius: 6px;
+    max-width: 480px; width: 90%; padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal h3 { margin: 0 0 6px; font-size: 16px; }
+  .modal p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 6px 0 16px; }
+  .screen-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+  .screen-item {
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 12px; cursor: pointer; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fff; transition: all 0.15s;
+  }
+  .screen-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .screen-item .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--muted);
+  }
+  .screen-item .badge {
+    background: var(--ink); color: #fff;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; text-transform: uppercase;
+  }
+  .modal-actions {
+    display: flex; gap: 8px; margin-top: 16px;
+    justify-content: flex-end;
+  }
+  .modal-actions button { width: auto; padding: 8px 14px; }
+  /* Display-Modus (Sekundär-Bildschirm / Beamer) */
+  body.display-mode { background: #000; }
+  body.display-mode .panel { display: none; }
+  body.display-mode .app { grid-template-columns: 1fr; }
+  body.display-mode .display {
+    background: #1a1a1a; height: 100vh;
+    padding: 0; align-items: center; justify-content: center;
+  }
+  body.display-mode .canvas-wrap {
+    box-shadow: 0 0 80px rgba(0,0,0,0.6);
+    margin: 0;
+  }
+  body.display-mode .display-hint {
+    position: fixed; top: 12px; right: 12px;
+    color: #888; font-size: 11px;
+    background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 3px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <h1>EKG-Teach</h1>
+    <div class="subtitle">Lehrwerkzeug · Prototyp v1</div>
+
+    <div class="section s-pathology">
+      <h2>Pathologie</h2>
+      <input type="search" id="search" placeholder="Suchen …">
+      <label>Kategorie</label>
+      <select id="category"></select>
+      <label>Rhythmus / Befund</label>
+      <select id="pathology"></select>
+      <div class="features" id="features"></div>
+    </div>
+
+    <div class="section s-params">
+      <h2>Parameter</h2>
+      <label>Herzfrequenz (1/min)</label>
+      <div class="slider-row">
+        <input type="range" id="hr" min="20" max="250" value="75">
+        <div class="val" id="hr-val">75</div>
+      </div>
+      <label>PR-/PQ-Intervall (ms)</label>
+      <div class="slider-row">
+        <input type="range" id="pr" min="80" max="400" value="160">
+        <div class="val" id="pr-val">160</div>
+      </div>
+      <label>QRS-Dauer (ms)</label>
+      <div class="slider-row">
+        <input type="range" id="qrs" min="60" max="200" value="90">
+        <div class="val" id="qrs-val">90</div>
+      </div>
+      <label>QT-Intervall (ms)</label>
+      <div class="slider-row">
+        <input type="range" id="qt" min="250" max="600" value="380">
+        <div class="val" id="qt-val">380</div>
+      </div>
+      <div class="footer-note">QTc nach Bazett: <span id="qtc-val">–</span></div>
+    </div>
+
+    <div class="section s-axis">
+      <h2>Herzachse / Lagetyp</h2>
+      <div class="axis-grid">
+        <button class="axis-btn" data-axis="-60">Überdr. Links</button>
+        <button class="axis-btn" data-axis="0">Linkstyp</button>
+        <button class="axis-btn active" data-axis="60">Indifferenz</button>
+        <button class="axis-btn" data-axis="80">Steiltyp</button>
+        <button class="axis-btn" data-axis="110">Rechtstyp</button>
+        <button class="axis-btn" data-axis="150">Überdr. Rechts</button>
+      </div>
+      <label style="margin-top:8px">Exakter Winkel (°)</label>
+      <div class="slider-row">
+        <input type="range" id="axis" min="-90" max="180" value="60">
+        <div class="val" id="axis-val">+60°</div>
+      </div>
+    </div>
+
+    <div class="section s-display">
+      <h2>Darstellung</h2>
+      <label>Layout</label>
+      <select id="layout">
+        <option value="clinical">Klinisch 3×4 + Rhythmusstreifen</option>
+        <option value="onepage">Eine Seite: Extremitäten links / Brustwand rechts</option>
+        <option value="split">Extremitäten + Brustwand getrennt (2 Seiten)</option>
+        <option value="6x2">6×2 vertikal (gepaart)</option>
+        <option value="12x1">12×1 untereinander</option>
+        <option value="rhythm">Nur Rhythmusstreifen (II)</option>
+      </select>
+      <label>Papiervorschub</label>
+      <select id="speed">
+        <option value="50">50 mm/s (Deutschland-Standard)</option>
+        <option value="25">25 mm/s (Rhythmusstreifen)</option>
+      </select>
+      <label>Aktuelle Seite</label>
+      <select id="page">
+        <option value="1">Seite 1</option>
+      </select>
+      <div class="checkbox-row">
+        <input type="checkbox" id="invertAvr">
+        <label for="invertAvr" style="margin:0">aVR invertieren (Cabrera)</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="showLabels" checked>
+        <label for="showLabels" style="margin:0">Ableitungsbeschriftung</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="showCal" checked>
+        <label for="showCal" style="margin:0">Eichzacke einblenden</label>
+      </div>
+    </div>
+
+    <div class="section s-artifacts">
+      <h2>Artefakte</h2>
+      <label>50-Hz-Netzbrumm</label>
+      <input type="range" id="art50" min="0" max="100" value="0">
+      <label>Muskelzittern</label>
+      <input type="range" id="artMuscle" min="0" max="100" value="0">
+      <label>Grundlinienschwanken</label>
+      <input type="range" id="artBaseline" min="0" max="100" value="0">
+    </div>
+
+    <div class="section s-actions">
+      <h2>Aktionen</h2>
+      <button id="regen">Neu generieren</button>
+      <div class="button-row" style="margin-top:6px">
+        <button class="secondary" id="exportPng">Export PNG</button>
+        <button class="secondary" id="exportJson">Export JSON</button>
+      </div>
+      <div class="button-row" style="margin-top:6px">
+        <button class="secondary" id="exportCsv">Export CSV</button>
+        <button class="secondary" id="present">Vollbild</button>
+      </div>
+      <button class="teach" id="teachMode">🎓 Dozentenmodus starten</button>
+      <div class="footer-note">
+        Im Dozentenmodus erscheint das EKG auf einem zweiten Bildschirm.
+        Du behältst die Steuerung. Änderungen werden live übertragen.
+      </div>
+    </div>
+  </aside>
+
+  <main class="display">
+    <div class="canvas-wrap">
+      <canvas id="ekg"></canvas>
+    </div>
+    <div class="display-hint" id="displayHint" style="display:none">
+      Dozentenmodus aktiv · Steuerung im Hauptfenster · ESC für Vollbild beenden
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Bildschirmauswahl für Dozentenmodus -->
+<div class="modal-bg" id="screenModal">
+  <div class="modal">
+    <h3>Dozentenmodus starten</h3>
+    <p id="modalIntro">Auf welchem Bildschirm soll das EKG für die Schüler angezeigt werden?</p>
+    <div class="screen-list" id="screenList"></div>
+    <div class="modal-actions">
+      <button class="secondary" id="modalCancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =========================================================================
+   PATHOLOGIE-BIBLIOTHEK (datengetrieben, einfach erweiterbar)
+   ========================================================================= */
+
+// Kategorien mit Farbcodierung und Reihenfolge
+const CATEGORIES = [
+  { id: 'normal',       label: 'Normalbefund & Normvarianten',           color: '#5a9c5a' },
+  { id: 'sinus',        label: 'Sinusknoten-Pathologien',                color: '#2e74b5' },
+  { id: 'atrial',       label: 'Atriale Rhythmusstörungen',              color: '#7b4ba6' },
+  { id: 'junctional',   label: 'AV-Knoten / Junktionale Rhythmen',       color: '#c08400' },
+  { id: 'avblock',      label: 'AV-Blockierungen',                       color: '#d96d2b' },
+  { id: 'preexcite',    label: 'Präexzitationssyndrome',                 color: '#0d8d8a' },
+  { id: 'ventricular',  label: 'Ventrikuläre Rhythmusstörungen',         color: '#c72a30' },
+  { id: 'block',        label: 'Schenkel- und Faszikelblöcke',           color: '#a13d8a' },
+  { id: 'ischemia',     label: 'Ischämie & Infarkt',                     color: '#9c1f1f' },
+  { id: 'pacemaker',    label: 'Schrittmacher-EKG (normal & Dysfunktion)', color: '#3a4dab' },
+  { id: 'cmp',          label: 'Kardiomyopathien (DCM, HCM, ARVC)',      color: '#8f5520' },
+  { id: 'channel',      label: 'Ionenkanalerkrankungen',                 color: '#6a3aa0' },
+  { id: 'electrolyte',  label: 'Elektrolyt- und Medikamenten-Effekte',   color: '#b8911f' },
+  { id: 'hypertrophy',  label: 'Hypertrophie & Vorhofbelastung',         color: '#4a7050' },
+  { id: 'structural',   label: 'Perikard & Strukturell',                 color: '#5f6b80' },
+  { id: 'pulmonary',    label: 'Pulmonale Pathologien',                  color: '#7a5630' },
+  { id: 'special',      label: 'Sonderformen & Pitfalls',                color: '#444444' }
+];
+
+const PATHOLOGIES = {
+  // ───── NORMALBEFUND & NORMVARIANTEN ─────
+  sinus_normal: {
+    name: 'Sinusrhythmus (Normalbefund)',
+    category: 'normal',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'P-Welle vor jedem QRS, positiv in II',
+      'Regelmäßige RR-Abstände',
+      'Frequenz 60–100/min',
+      'PQ 120–200 ms, QRS < 120 ms'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  sinus_arrhythmia: {
+    name: 'Sinusarrhythmie (atemabhängig)',
+    category: 'normal',
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Atemabhängige RR-Variation (Inspiration kürzer, Exspiration länger)',
+      'P-Welle morphologisch normal, vor jedem QRS',
+      'Physiologische Variante, v.a. bei Jugendlichen',
+      'Verschwindet bei Sympathikus-Aktivierung'
+    ],
+    rhythm: 'irregular_irregular', pWave: true,
+    modifiers: { respiratoryVariation: 0.2 }
+  },
+  early_repolarization: {
+    name: 'Frühe Repolarisation',
+    category: 'normal',
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Konkave ST-Hebung in V2–V5 (selten II, aVF)',
+      'J-Punkt-Notch (Knick am QRS-Ende)',
+      'Häufig bei jungen Männern, asymptomatisch',
+      'Differentialdiagnose Perikarditis / STEMI beachten'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { V2: 1.5, V3: 2, V4: 1.5, V5: 1 } }
+  },
+  sinus_brady: {
+    name: 'Sinusbradykardie',
+    category: 'sinus',
+    defaults: { hr: 45, pr: 180, qrs: 90, qt: 440, axis: 60 },
+    features: [
+      'Sinusrhythmus mit Frequenz < 60/min',
+      'P vor jedem QRS, regelmäßig',
+      'Ursachen: vagotonie, Sportlerherz, Medikamente (β-Blocker)'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  sinus_tachy: {
+    name: 'Sinustachykardie',
+    category: 'sinus',
+    defaults: { hr: 130, pr: 140, qrs: 90, qt: 320, axis: 60 },
+    features: [
+      'Sinusrhythmus mit Frequenz > 100/min',
+      'P vor jedem QRS, regelmäßig',
+      'Ursachen: Fieber, Schmerz, Hypovolämie, Hyperthyreose'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  afib: {
+    name: 'Vorhofflimmern',
+    category: 'atrial',
+    defaults: { hr: 110, pr: 0, qrs: 90, qt: 360, axis: 60 },
+    features: [
+      'Absolute Arrhythmie (unregelmäßige RR-Abstände)',
+      'Keine erkennbaren P-Wellen',
+      'Flimmerwellen (f-Wellen) statt Grundlinie',
+      'Bei tachykarder Form: HF > 100/min'
+    ],
+    rhythm: 'irregular_irregular', pWave: false,
+    modifiers: { fWaves: true }
+  },
+  aflutter: {
+    name: 'Vorhofflattern (typisch)',
+    category: 'atrial',
+    defaults: { hr: 150, pr: 0, qrs: 90, qt: 340, axis: 60 },
+    features: [
+      'Sägezahnartige Flatterwellen (F-Wellen), v.a. in II, III, aVF',
+      'Vorhoffrequenz ca. 300/min',
+      'Meist regelmäßige Überleitung (2:1, 3:1, 4:1)',
+      'Kammerfrequenz 150 (bei 2:1) sehr typisch'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { flutterWaves: true }
+  },
+  av_block_1: {
+    name: 'AV-Block I°',
+    category: 'avblock',
+    defaults: { hr: 70, pr: 280, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'PQ-Zeit konstant > 200 ms',
+      'P vor jedem QRS, alle übergeleitet',
+      'Meist harmlos, Verlaufskontrolle ausreichend'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  av_block_2_mobitz1: {
+    name: 'AV-Block II° Typ Mobitz I (Wenckebach)',
+    category: 'avblock',
+    defaults: { hr: 60, pr: 200, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'Progrediente PQ-Verlängerung über mehrere Schläge',
+      'Plötzlicher Ausfall eines QRS am Periodenende',
+      'Lokalisation meist AV-Knoten (supra-Hisär), gutartig'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { wenckebach: true }
+  },
+  av_block_2_mobitz2: {
+    name: 'AV-Block II° Typ Mobitz II',
+    category: 'avblock',
+    defaults: { hr: 55, pr: 180, qrs: 110, qt: 420, axis: 60 },
+    features: [
+      'Plötzlicher QRS-Ausfall ohne PQ-Veränderung',
+      'PQ konstant vor und nach dem Ausfall',
+      'Lokalisation infra-Hisär, prognostisch ungünstig',
+      'Schrittmacher-Indikation'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { mobitz2: true, ratio: 3 }
+  },
+  av_block_3: {
+    name: 'AV-Block III° (totaler AV-Block)',
+    category: 'avblock',
+    defaults: { hr: 40, pr: 0, qrs: 130, qt: 480, axis: 60 },
+    features: [
+      'Komplette AV-Dissoziation: P und QRS unabhängig',
+      'Vorhoffrequenz höher als Kammerfrequenz',
+      'Ventrikulärer Ersatzrhythmus 20–40/min',
+      'Verbreiterte QRS bei ventrikulärem Ursprung'
+    ],
+    rhythm: 'dissociated', pWave: true,
+    modifiers: { dissociation: true, atrialRate: 80 }
+  },
+  ves: {
+    name: 'Ventrikuläre Extrasystolen (VES)',
+    category: 'ventricular',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Vorzeitiger, breiter QRS-Komplex ohne vorausgehende P',
+      'Diskordante T-Welle',
+      'Postextrasystolische Pause (kompensatorisch)',
+      'Bigeminus, Trigeminus, Couplet, Salve möglich'
+    ],
+    rhythm: 'ves_pattern', pWave: true,
+    modifiers: { vesEvery: 4 }
+  },
+  vt: {
+    name: 'Ventrikuläre Tachykardie (monomorph)',
+    category: 'ventricular',
+    defaults: { hr: 180, pr: 0, qrs: 160, qt: 400, axis: 120 },
+    features: [
+      '≥ 3 ventrikuläre Schläge in Folge, HF > 100/min',
+      'Breiter QRS (> 120 ms), monomorph',
+      'AV-Dissoziation möglich (P-Wellen marschieren durch)',
+      'Lebensbedrohlich – ALS-Algorithmus ERC 2025'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { wideQrs: true, monomorphic: true }
+  },
+  vf: {
+    name: 'Kammerflimmern',
+    category: 'ventricular',
+    defaults: { hr: 300, pr: 0, qrs: 0, qt: 0, axis: 60 },
+    features: [
+      'Chaotische, unregelmäßige Erregungen',
+      'Keine erkennbaren QRS-Komplexe',
+      'Klinik: Kreislaufstillstand',
+      'Sofortige Defibrillation indiziert (ERC 2025)'
+    ],
+    rhythm: 'chaotic', pWave: false,
+    modifiers: { vf: true }
+  },
+  asystole: {
+    name: 'Asystolie',
+    category: 'ventricular',
+    defaults: { hr: 0, pr: 0, qrs: 0, qt: 0, axis: 60 },
+    features: [
+      'Nulllinie ohne elektrische Aktivität',
+      'Keine P-Wellen, keine QRS-Komplexe',
+      'Klinik: Kreislaufstillstand',
+      'Kein defibrillierbarer Rhythmus – CPR, Adrenalin'
+    ],
+    rhythm: 'asystole', pWave: false, modifiers: { asystole: true }
+  },
+  stemi_inferior: {
+    name: 'STEMI – Hinterwandinfarkt (inferior)',
+    category: 'ischemia',
+    defaults: { hr: 80, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'ST-Hebung in II, III, aVF',
+      'Reziproke ST-Senkung in I, aVL',
+      'Q-Welle (Pardée-Q) im Verlauf',
+      'Häufig RCA-Verschluss; Bradykardie möglich'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { II: 3, III: 4, aVF: 3.5, I: -1, aVL: -1.5 } }
+  },
+  stemi_anterior: {
+    name: 'STEMI – Vorderwandinfarkt (anterior)',
+    category: 'ischemia',
+    defaults: { hr: 90, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'ST-Hebung in V1–V4 (anteroseptal/anterior)',
+      'Reziproke ST-Senkung in II, III, aVF möglich',
+      'R-Verlust V1–V3 im Verlauf',
+      'LAD-Verschluss; hohe Letalität'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { V1: 3, V2: 5, V3: 4, V4: 3, II: -1, III: -1.5 } }
+  },
+  stemi_lateral: {
+    name: 'STEMI – Seitenwandinfarkt (lateral)',
+    category: 'ischemia',
+    defaults: { hr: 85, pr: 160, qrs: 90, qt: 400, axis: 0 },
+    features: [
+      'ST-Hebung in I, aVL, V5, V6',
+      'Reziproke ST-Senkung in III, aVF',
+      'RCX- oder Diagonalast-Verschluss'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { I: 2.5, aVL: 3, V5: 2.5, V6: 2, III: -1, aVF: -1 } }
+  },
+  pericarditis: {
+    name: 'Perikarditis (akut)',
+    category: 'structural',
+    defaults: { hr: 95, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Konkave ST-Hebung in fast allen Ableitungen',
+      'Keine reziproken Senkungen (außer aVR, V1)',
+      'PR-Senkung typisch (am besten in II)',
+      'Niedrige QRS-Amplitude bei Perikarderguss'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { I: 1.5, II: 2, III: 1, aVL: 1, aVF: 1.5, V2: 1.5, V3: 2, V4: 2, V5: 1.5, V6: 1, aVR: -1 }, prDepression: true }
+  },
+  pulm_embolism: {
+    name: 'Lungenembolie (S1Q3T3)',
+    category: 'pulmonary',
+    defaults: { hr: 115, pr: 160, qrs: 100, qt: 360, axis: 100 },
+    features: [
+      'Sinustachykardie (häufigster Befund)',
+      'S1Q3T3-Muster: S in I, Q und T-Negativierung in III',
+      'Rechtsachsenabweichung, evtl. inkompletter RSB',
+      'T-Negativierung V1–V4 (Rechtsherzbelastung)'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { s1q3t3: true, tInversion: { V1: -1, V2: -1, V3: -1, V4: -0.5, III: -1 } }
+  },
+  hyperkalemia: {
+    name: 'Hyperkaliämie',
+    category: 'electrolyte',
+    defaults: { hr: 70, pr: 200, qrs: 130, qt: 400, axis: 60 },
+    features: [
+      'Hohe, spitze T-Wellen ("zeltförmig")',
+      'PQ-Verlängerung, P-Welle abgeflacht/verschwindet',
+      'QRS-Verbreiterung',
+      'Endstadium: Sinuswelle → Asystolie'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { tallT: true, widePQ: true, pFlat: true }
+  },
+  hypokalemia: {
+    name: 'Hypokaliämie',
+    category: 'electrolyte',
+    defaults: { hr: 80, pr: 160, qrs: 90, qt: 460, axis: 60 },
+    features: [
+      'Abgeflachte T-Welle, prominente U-Welle',
+      'ST-Senkung',
+      'QT-Verlängerung (relativ)',
+      'Arrhythmogen, Torsade-Risiko'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { flatT: true, uWave: true, stDepress: 0.5 }
+  },
+  wpw: {
+    name: 'WPW-Syndrom (Präexzitation)',
+    category: 'preexcite',
+    defaults: { hr: 75, pr: 100, qrs: 130, qt: 380, axis: 60 },
+    features: [
+      'Kurze PQ-Zeit (< 120 ms)',
+      'Delta-Welle (träger QRS-Beginn)',
+      'Verbreiterter QRS',
+      'Risiko: Tachyarrhythmien (AVRT, VHF mit schneller Überleitung)'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { deltaWave: true }
+  },
+  lbbb: {
+    name: 'Linksschenkelblock (LSB)',
+    category: 'block',
+    defaults: { hr: 75, pr: 160, qrs: 140, qt: 440, axis: 0 },
+    features: [
+      'QRS-Breite ≥ 120 ms',
+      'Breiter, plumper R in I, aVL, V5, V6 (M-Form)',
+      'Tiefes S oder QS in V1–V2',
+      'Diskordante ST-/T-Veränderungen',
+      'Sgarbossa-Kriterien bei V.a. STEMI'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { lbbb: true }
+  },
+  rbbb: {
+    name: 'Rechtsschenkelblock (RSB)',
+    category: 'block',
+    defaults: { hr: 75, pr: 160, qrs: 130, qt: 420, axis: 90 },
+    features: [
+      'QRS-Breite ≥ 120 ms',
+      'rSR\'-Komplex in V1 (M-Form)',
+      'Breites S in I, V5, V6',
+      'T-Negativierung in V1–V3 (sekundär)'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { rbbb: true }
+  },
+
+  // ───── SINUSKNOTEN-PATHOLOGIEN (zusätzlich zu brady/tachy oben) ─────
+  sa_block_2: {
+    name: 'SA-Block II° (sinuatrialer Block)',
+    category: 'sinus',
+    defaults: { hr: 55, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'Ausfall einzelner P-Wellen am Sinusknoten-Übertritt',
+      'Pause = Vielfaches des Grund-RR-Intervalls',
+      'Klinisch ähnlich AV-Block II°, Differenzierung durch P-Verhalten',
+      'Bei Symptomen Schrittmacher erwägen'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { saBlock: true, saRatio: 4 }
+  },
+  sinus_arrest: {
+    name: 'Sinusarrest / Sinusstillstand',
+    category: 'sinus',
+    defaults: { hr: 60, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'Sinusknoten sistiert für > 2 Sekunden',
+      'Lange Pause ohne P-Welle und ohne QRS',
+      'Pausenlänge ist KEIN Vielfaches des RR-Intervalls (vs. SA-Block)',
+      'Risiko: Synkope, Asystolie'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { arrest: true, arrestEvery: 5 }
+  },
+  sick_sinus: {
+    name: 'Sick-Sinus-Syndrom (Brady-Tachy-Syndrom)',
+    category: 'sinus',
+    defaults: { hr: 50, pr: 160, qrs: 90, qt: 420, axis: 60 },
+    features: [
+      'Wechsel zwischen Sinusbradykardie und atrialen Tachyarrhythmien',
+      'Häufig postkonversionelle Pausen nach VHF-Episode',
+      'Inadäquate Sinustachykardie-Antwort auf Belastung',
+      'Schrittmacher-Indikation bei Symptomen'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+
+  // ───── ATRIALE RHYTHMUSSTÖRUNGEN ─────
+  sves: {
+    name: 'Supraventrikuläre Extrasystolen (SVES)',
+    category: 'atrial',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Vorzeitiger schmaler QRS-Komplex',
+      'P-Welle vorausgehend, aber morphologisch verändert (ektoper Fokus)',
+      'Postextrasystolische Pause nicht vollständig kompensatorisch',
+      'Meist harmlos, häufige Begleiterscheinung'
+    ],
+    rhythm: 'ves_pattern', pWave: true,
+    modifiers: { svesEvery: 5 }
+  },
+  atrial_tachy: {
+    name: 'Fokale atriale Tachykardie',
+    category: 'atrial',
+    defaults: { hr: 160, pr: 140, qrs: 90, qt: 320, axis: 60 },
+    features: [
+      'Ektoper atrialer Fokus (nicht Sinusknoten)',
+      'P-Wellen-Morphologie anders als Sinus-P',
+      'PR-Zeit oft länger als Sinusrhythmus-PR',
+      'Schmaler QRS, regelmäßig'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { ectopicP: true }
+  },
+  multifocal_atrial_tachy: {
+    name: 'Multifokale atriale Tachykardie (MAT)',
+    category: 'atrial',
+    defaults: { hr: 130, pr: 160, qrs: 90, qt: 340, axis: 60 },
+    features: [
+      'Mindestens 3 unterschiedliche P-Morphologien',
+      'Unregelmäßige RR-Abstände',
+      'Häufig bei COPD, Cor pulmonale, Sepsis',
+      'Abgrenzung zu Vorhofflimmern: P-Wellen sind erkennbar'
+    ],
+    rhythm: 'irregular_irregular', pWave: true,
+    modifiers: { multifocalP: true }
+  },
+  wandering_pacemaker: {
+    name: 'Wandering Pacemaker (wandernder Vorhofschrittmacher)',
+    category: 'atrial',
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Wechselnde P-Wellen-Morphologie (≥ 3 verschiedene)',
+      'Wechselnde PR-Intervalle',
+      'Frequenz < 100/min (sonst MAT)',
+      'Meist harmlos, vagotone Variante'
+    ],
+    rhythm: 'irregular_irregular', pWave: true,
+    modifiers: { multifocalP: true }
+  },
+
+  // ───── AV-KNOTEN / JUNKTIONALE RHYTHMEN ─────
+  avnrt: {
+    name: 'AV-Knoten-Reentry-Tachykardie (AVNRT)',
+    category: 'junctional',
+    defaults: { hr: 180, pr: 0, qrs: 90, qt: 320, axis: 60 },
+    features: [
+      'Schmaler QRS-Komplex, regelmäßig',
+      'P-Welle meist im QRS verborgen oder als Pseudo-S in II/III/aVF',
+      'Pseudo-r\' in V1 (retrograde P-Welle)',
+      'Beginn und Ende abrupt, Adenosin terminiert'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { pseudoR: true }
+  },
+  junctional_escape: {
+    name: 'AV-junktionaler Ersatzrhythmus',
+    category: 'junctional',
+    defaults: { hr: 45, pr: 0, qrs: 90, qt: 420, axis: 60 },
+    features: [
+      'Schmaler QRS, Frequenz 40–60/min',
+      'Keine reguläre P-Welle vor QRS, oder retrograde P (negativ in II)',
+      'Tritt auf bei Sinusknoten-Ausfall, AV-Block, vagotonem Tonus',
+      'Sicherheitsrhythmus des AV-Knotens'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { junctional: true }
+  },
+  accel_junctional: {
+    name: 'Akzelerierter junktionaler Rhythmus',
+    category: 'junctional',
+    defaults: { hr: 80, pr: 0, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Junktionaler Rhythmus mit Frequenz 60–100/min',
+      'Schmaler QRS, fehlende oder retrograde P',
+      'Ursachen: Digitalis, inferiorer Myokardinfarkt, Myokarditis',
+      'Häufig postoperativ am Herzen'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { junctional: true }
+  },
+
+  // ───── AV-BLOCKIERUNGEN (zusätzlich) ─────
+  av_block_2_2to1: {
+    name: 'AV-Block II° mit 2:1-Überleitung',
+    category: 'avblock',
+    defaults: { hr: 40, pr: 200, qrs: 100, qt: 420, axis: 60 },
+    features: [
+      'Jede zweite P-Welle wird nicht übergeleitet',
+      'Aus 2:1-EKG keine sichere Mobitz-I-/Mobitz-II-Unterscheidung möglich',
+      'Schmaler QRS: eher AV-Knoten-Ebene (Mobitz I)',
+      'Breiter QRS: eher infra-Hisär (Mobitz II) – ungünstig'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { mobitz2: true, ratio: 2 }
+  },
+
+  // ───── PRÄEXZITATION (zusätzlich zu WPW oben) ─────
+  lgl: {
+    name: 'Lown-Ganong-Levine-Syndrom (LGL)',
+    category: 'preexcite',
+    defaults: { hr: 75, pr: 100, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Kurze PQ-Zeit (< 120 ms)',
+      'Schmaler QRS-Komplex (KEINE Delta-Welle, anders als WPW)',
+      'Akzessorische Bahn umgeht AV-Knoten ohne ventrikuläre Präexzitation',
+      'Paroxysmale Tachykardien möglich'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+
+  // ───── VENTRIKULÄRE RHYTHMUSSTÖRUNGEN (zusätzlich) ─────
+  ves_bigeminus: {
+    name: 'Ventrikulärer Bigeminus',
+    category: 'ventricular',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Jeder Normalschlag wird von einer VES gefolgt',
+      'Regelmäßiges Sinus-VES-Sinus-VES-Muster',
+      'Häufig bei Digitalis-Effekt, ischämischer Herzerkrankung',
+      'Klinik: oft als Pulsdefizit fühlbar'
+    ],
+    rhythm: 'ves_pattern', pWave: true,
+    modifiers: { vesEvery: 2 }
+  },
+  polymorphic_vt: {
+    name: 'Polymorphe ventrikuläre Tachykardie',
+    category: 'ventricular',
+    defaults: { hr: 200, pr: 0, qrs: 160, qt: 400, axis: 60 },
+    features: [
+      'Breite QRS-Komplexe mit wechselnder Morphologie',
+      'Frequenz > 100/min, meist 150–250/min',
+      'Hämodynamisch instabil, Übergang in VF möglich',
+      'Defibrillation indiziert (ALS-Algorithmus ERC 2025)'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { wideQrs: true, polymorphic: true }
+  },
+  torsade: {
+    name: 'Torsade-de-pointes (Spitzenumkehr-Tachykardie)',
+    category: 'ventricular',
+    defaults: { hr: 220, pr: 0, qrs: 160, qt: 500, axis: 60 },
+    features: [
+      'Polymorphe VT mit wechselnder QRS-Achse („Spitzenumkehr")',
+      'Vor Beginn meist QT-Verlängerung im Sinusrhythmus',
+      'Ursachen: Long-QT-Syndrom, Hypokaliämie, QT-verlängernde Medikamente',
+      'Therapie: Magnesium i.v., Defibrillation bei Instabilität'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { torsade: true }
+  },
+  aivr: {
+    name: 'Akzelerierter idioventrikulärer Rhythmus (AIVR)',
+    category: 'ventricular',
+    defaults: { hr: 80, pr: 0, qrs: 140, qt: 440, axis: 60 },
+    features: [
+      'Ventrikulärer Ersatzrhythmus 60–110/min (zwischen Idioventrikulär und VT)',
+      'Breiter QRS, regelmäßig',
+      'Typisch nach erfolgreicher Reperfusion bei STEMI',
+      'Meist selbstlimitierend, hämodynamisch stabil'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { wideQrs: true, monomorphic: true }
+  },
+  idioventricular: {
+    name: 'Idioventrikulärer Ersatzrhythmus (langsam)',
+    category: 'ventricular',
+    defaults: { hr: 30, pr: 0, qrs: 160, qt: 540, axis: 120 },
+    features: [
+      'Ventrikulärer Ersatzrhythmus 20–40/min',
+      'Sehr breiter QRS, langsam regelmäßig',
+      'Tritt bei totalem AV-Block oder Sinusarrest auf',
+      'Klinisch oft instabil, Schrittmacher-Indikation'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { wideQrs: true, monomorphic: true }
+  },
+  ventricular_flutter: {
+    name: 'Kammerflattern',
+    category: 'ventricular',
+    defaults: { hr: 250, pr: 0, qrs: 200, qt: 0, axis: 60 },
+    features: [
+      'Regelmäßige sinusartige Wellen 250–350/min',
+      'Keine abgrenzbaren QRS-/T-Komplexe',
+      'Übergang in Kammerflimmern fließend',
+      'Lebensbedrohlich – sofortige Defibrillation'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { vflutter: true }
+  },
+
+  // ───── SCHENKEL- UND FASZIKELBLÖCKE (zusätzlich) ─────
+  lahb: {
+    name: 'Linksanteriorer Hemiblock (LAHB)',
+    category: 'block',
+    defaults: { hr: 75, pr: 160, qrs: 100, qt: 400, axis: -60 },
+    features: [
+      'Überdrehter Linkstyp (Achse < –45°)',
+      'QRS-Breite normal oder leicht verbreitert (< 120 ms)',
+      'qR in I/aVL, rS in II/III/aVF',
+      'Häufigste faszikuläre Leitungsstörung'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  lphb: {
+    name: 'Linksposteriorer Hemiblock (LPHB)',
+    category: 'block',
+    defaults: { hr: 75, pr: 160, qrs: 100, qt: 400, axis: 130 },
+    features: [
+      'Überdrehter Rechtstyp (Achse > +120°)',
+      'QRS normal breit oder leicht verbreitert',
+      'qR in III/aVF, rS in I/aVL',
+      'Selten isoliert, oft mit RSB als bifaszikulärer Block'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  bifascicular: {
+    name: 'Bifaszikulärer Block (RSB + LAHB)',
+    category: 'block',
+    defaults: { hr: 75, pr: 180, qrs: 130, qt: 420, axis: -60 },
+    features: [
+      'RSB-Morphologie + überdrehter Linkstyp',
+      'QRS ≥ 120 ms',
+      'Synkope-Risiko: Übergang in totalen AV-Block möglich',
+      'Bei Symptomen Schrittmacher-Evaluation'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { rbbb: true }
+  },
+
+  // ───── ISCHÄMIE & INFARKT (zusätzlich) ─────
+  nstemi: {
+    name: 'NSTEMI / Nicht-ST-Hebungsinfarkt',
+    category: 'ischemia',
+    defaults: { hr: 90, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'ST-Senkung (horizontal oder deszendierend ≥ 0,1 mV)',
+      'T-Negativierung in betroffenem Versorgungsgebiet',
+      'KEINE persistierende ST-Hebung',
+      'Diagnose nur durch Troponin-Verlauf gesichert'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { V4: -1.5, V5: -2, V6: -1.5, I: -1 }, tInversion: { V4: -0.5, V5: -0.7, V6: -0.5 } }
+  },
+  wellens_a: {
+    name: 'Wellens-Syndrom Typ A (biphasische T)',
+    category: 'ischemia',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 420, axis: 60 },
+    features: [
+      'Biphasische T-Wellen in V2–V3 (positiv-negativ)',
+      'Schmerzfreies Intervall nach Brustschmerzen',
+      'Hinweis auf hochgradige proximale LAD-Stenose',
+      'Belastungstest gefährlich, dringend Katheter'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { wellensA: true }
+  },
+  wellens_b: {
+    name: 'Wellens-Syndrom Typ B (tief-negative T)',
+    category: 'ischemia',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 440, axis: 60 },
+    features: [
+      'Tief symmetrisch negative T-Wellen in V2–V3 (V1–V4)',
+      'Schmerzfreies Intervall, häufig Verkennung als „alter Befund"',
+      'Hochgradige proximale LAD-Stenose',
+      'Indikation zur Akut-Koronarangiographie'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { tInversion: { V1: -1, V2: -2, V3: -2.5, V4: -1.5 } }
+  },
+  de_winter: {
+    name: 'De-Winter-T-Wellen (STEMI-Äquivalent)',
+    category: 'ischemia',
+    defaults: { hr: 95, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Aufsteigende ST-Senkung am J-Punkt in V1–V6',
+      'Hohe, symmetrische, positive T-Wellen',
+      'Diskrete ST-Hebung in aVR',
+      'Akuter proximaler LAD-Verschluss → behandeln wie STEMI'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { V1: -1, V2: -2, V3: -2, V4: -1.5, aVR: 0.8 }, tallT: true }
+  },
+  stemi_posterior: {
+    name: 'STEMI – Hinterwand (posterior, „strikt posterior")',
+    category: 'ischemia',
+    defaults: { hr: 85, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    features: [
+      'ST-Senkung in V1–V3 als „Spiegelbild" (reziprok)',
+      'Hohe R-Zacken in V1/V2',
+      'Häufig mit inferiorem STEMI kombiniert',
+      'V7–V9 zeigen direkte ST-Hebung'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { stElevation: { V1: -3, V2: -4, V3: -2.5 }, posteriorR: true }
+  },
+
+  // ───── SCHRITTMACHER-EKG ─────
+  pace_vvi: {
+    name: 'Schrittmacher VVI (Normalfunktion)',
+    category: 'pacemaker',
+    defaults: { hr: 70, pr: 0, qrs: 150, qt: 460, axis: -60 },
+    features: [
+      'Schrittmacher-Spike (Pacing-Artefakt) vor jedem QRS',
+      'Breiter QRS in LSB-Morphologie (RV-Stimulation)',
+      'Keine vorausgehende P-Welle (oder Sinus-P unabhängig)',
+      'Eingestellte Grundfrequenz, regelmäßig'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { pacedV: true, lbbb: true }
+  },
+  pace_ddd: {
+    name: 'Schrittmacher DDD (Zweikammer, Normalfunktion)',
+    category: 'pacemaker',
+    defaults: { hr: 70, pr: 180, qrs: 150, qt: 460, axis: -60 },
+    features: [
+      'Atrialer Spike vor P-Welle + ventrikulärer Spike vor QRS',
+      'AV-Sequenzielle Stimulation, „Doppel-Spike"',
+      'Breiter QRS in LSB-Morphologie',
+      'Reagiert auf Eigenrhythmus (Sensing)'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { pacedA: true, pacedV: true, lbbb: true }
+  },
+  pace_loc: {
+    name: 'Schrittmacher: Capture-Verlust (Failure to Capture)',
+    category: 'pacemaker',
+    defaults: { hr: 70, pr: 0, qrs: 150, qt: 460, axis: 60 },
+    features: [
+      'Spike sichtbar, aber KEIN nachfolgender QRS',
+      'Ursachen: Sondendislokation, Reizschwellenanstieg (Infarkt, Hyperkaliämie)',
+      'Klinik: Bradykardie, Synkope, Asystolie möglich',
+      'Notfall: externe Stimulation, Magnetauflage prüfen'
+    ],
+    rhythm: 'regular', pWave: false,
+    modifiers: { pacedV: true, lbbb: true, failCapture: true }
+  },
+  pace_undersense: {
+    name: 'Schrittmacher: Undersensing',
+    category: 'pacemaker',
+    defaults: { hr: 70, pr: 0, qrs: 150, qt: 460, axis: -60 },
+    features: [
+      'Schrittmacher stimuliert trotz Eigenaktivität → unangemessene Spikes',
+      'Spike-auf-T-Phänomen möglich (R-auf-T-Risiko → VF)',
+      'Ursache: Sensitivität zu niedrig, Sondenproblem, schwaches Eigensignal',
+      'Risiko: induziertes Kammerflimmern'
+    ],
+    rhythm: 'ves_pattern', pWave: true,
+    modifiers: { pacedV: true, lbbb: true, undersense: true }
+  },
+  pace_oversense: {
+    name: 'Schrittmacher: Oversensing',
+    category: 'pacemaker',
+    defaults: { hr: 40, pr: 0, qrs: 90, qt: 420, axis: 60 },
+    features: [
+      'Schrittmacher hemmt sich fälschlich → fehlende Stimulation',
+      'Folge: inadäquate Bradykardie / Pausen bei schrittmacherabhängigen Patienten',
+      'Ursachen: T-Welle als R fehlinterpretiert, Myopotentiale, EMI (elektromagnetische Interferenz)',
+      'Therapie: Magnetauflage (asynchroner Modus)'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { oversense: true }
+  },
+
+  // ───── KARDIOMYOPATHIEN ─────
+  dcm: {
+    name: 'Dilatative Kardiomyopathie (DCM)',
+    category: 'cmp',
+    defaults: { hr: 90, pr: 200, qrs: 150, qt: 460, axis: -30 },
+    features: [
+      'Häufig kompletter Linksschenkelblock (QRS > 120 ms)',
+      'Niedrige R-Amplituden in den präkordialen Ableitungen',
+      'Fragmentierte QRS-Komplexe (prognostisch ungünstig)',
+      'Sekundäre Arrhythmien: VHF, VT, totaler AV-Block'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { lbbb: true, lowVoltage: 0.7 }
+  },
+  hcm: {
+    name: 'Hypertrophe Kardiomyopathie (HCM)',
+    category: 'cmp',
+    defaults: { hr: 75, pr: 160, qrs: 100, qt: 420, axis: 0 },
+    features: [
+      'Linksventrikuläre Hypertrophie-Zeichen (Sokolow-Lyon)',
+      'Tiefe schmale Q-Wellen in lateralen Ableitungen (Pseudo-Infarkt)',
+      'Tief negative T-Wellen lateral und apikal',
+      'Apikale HCM (Yamaguchi): „giant negative T" in V3–V5'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { lvh: true, deepLatQ: true, tInversion: { V4: -1.5, V5: -2, V6: -1.5, I: -1, aVL: -1 } }
+  },
+  arvc: {
+    name: 'Arrhythmogene rechtsventrikuläre Kardiomyopathie (ARVC)',
+    category: 'cmp',
+    defaults: { hr: 75, pr: 160, qrs: 120, qt: 420, axis: 90 },
+    features: [
+      'Epsilon-Welle (kleine Auslenkung nach QRS) in V1–V3',
+      'T-Negativierung in V1–V3 (außerhalb des RSB-Kontexts)',
+      'Ventrikuläre Arrhythmien mit LSB-Morphologie',
+      'Risiko des plötzlichen Herztodes, ICD-Indikation'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { epsilon: true, tInversion: { V1: -0.8, V2: -1, V3: -0.5 } }
+  },
+
+  // ───── IONENKANALERKRANKUNGEN ─────
+  long_qt: {
+    name: 'Long-QT-Syndrom (LQTS)',
+    category: 'channel',
+    defaults: { hr: 60, pr: 160, qrs: 90, qt: 540, axis: 60 },
+    features: [
+      'QTc > 460 ms (Frauen) bzw. > 450 ms (Männer)',
+      'Risiko: Torsade-de-pointes, plötzlicher Herztod',
+      'LQT1: breite T, Belastungstrigger; LQT2: bifide T, akustische Trigger',
+      'LQT3: spät einsetzende T, Ruhe-/Schlaf-Ereignisse'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { longQt: true }
+  },
+  short_qt: {
+    name: 'Short-QT-Syndrom',
+    category: 'channel',
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 280, axis: 60 },
+    features: [
+      'QTc < 320 ms',
+      'Hohe, schmale, spitze T-Wellen',
+      'Risiko: VHF, polymorphe VT, plötzlicher Herztod',
+      'Sehr selten, autosomal-dominant vererbt'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { tallT: true }
+  },
+  brugada_1: {
+    name: 'Brugada-Syndrom Typ 1 (coved)',
+    category: 'channel',
+    defaults: { hr: 70, pr: 160, qrs: 100, qt: 380, axis: 60 },
+    features: [
+      'Coved-förmige ST-Hebung ≥ 2 mm in V1–V2',
+      'Negativ-konkave T-Welle direkt anschließend',
+      'Häufig Männer < 40, südostasiatischer Raum',
+      'Risiko: plötzlicher Herztod durch polymorphe VT/VF'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { brugada1: true }
+  },
+  brugada_2: {
+    name: 'Brugada-Syndrom Typ 2 (saddle-back)',
+    category: 'channel',
+    defaults: { hr: 70, pr: 160, qrs: 100, qt: 380, axis: 60 },
+    features: [
+      'Sattelförmige ST-Hebung in V1–V2',
+      'Positive oder biphasische T-Welle',
+      'Bei klinischem Verdacht: provokative Testung (Ajmalin)',
+      'Geringeres Risiko als Typ 1, aber Verlaufskontrolle wichtig'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { brugada2: true }
+  },
+
+  // ───── HYPERTROPHIE & VORHOFBELASTUNG ─────
+  lvh: {
+    name: 'Linksventrikuläre Hypertrophie (LVH)',
+    category: 'hypertrophy',
+    defaults: { hr: 75, pr: 160, qrs: 100, qt: 420, axis: 0 },
+    features: [
+      'Sokolow-Lyon-Index: S(V1) + R(V5 oder V6) > 3,5 mV',
+      'Cornell-Index: R(aVL) + S(V3) > 2,8 mV (M) bzw. 2,0 mV (F)',
+      'Linksverlagerung der Herzachse',
+      'Sekundäre ST-Senkung, T-Negativierung lateral („Strain-Pattern")'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { lvh: true }
+  },
+  rvh: {
+    name: 'Rechtsventrikuläre Hypertrophie (RVH)',
+    category: 'hypertrophy',
+    defaults: { hr: 80, pr: 160, qrs: 100, qt: 400, axis: 120 },
+    features: [
+      'Hohes R in V1 (R/S > 1), tiefe S in V5/V6',
+      'Rechtsachsenabweichung (Achse > +90°)',
+      'Inkompletter RSB häufig',
+      'Sekundäre ST-Senkung, T-Negativierung in V1–V3'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { rvh: true }
+  },
+  p_pulmonale: {
+    name: 'P-pulmonale (Rechtsvorhofbelastung)',
+    category: 'hypertrophy',
+    defaults: { hr: 80, pr: 160, qrs: 90, qt: 380, axis: 90 },
+    features: [
+      'P-Welle > 0,25 mV in II, III, aVF (hoch, spitz)',
+      'Hinweis auf Rechtsvorhofvergrößerung',
+      'Ursachen: COPD, Cor pulmonale, pulmonale Hypertonie',
+      'Häufig kombiniert mit RVH und Steiltyp'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { pPulmonale: true }
+  },
+  p_mitrale: {
+    name: 'P-mitrale (Linksvorhofbelastung)',
+    category: 'hypertrophy',
+    defaults: { hr: 75, pr: 180, qrs: 90, qt: 400, axis: 30 },
+    features: [
+      'P-Welle > 120 ms, doppelgipflig in II',
+      'Tief negativer P-Anteil in V1 (terminale P-Negativität)',
+      'Hinweis auf Linksvorhofvergrößerung',
+      'Ursachen: Mitralvitium, Hypertonie, Herzinsuffizienz'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { pMitrale: true }
+  },
+
+  // ───── PERIKARD & STRUKTURELL (zusätzlich zu Perikarditis) ─────
+  low_voltage: {
+    name: 'Niedervoltage (Low Voltage)',
+    category: 'structural',
+    defaults: { hr: 80, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'QRS-Amplitude < 0,5 mV in allen Extremitätenableitungen',
+      'QRS-Amplitude < 1,0 mV in allen Brustwandableitungen',
+      'Ursachen: Perikarderguss, Adipositas, Pleuraerguss, Amyloidose, COPD',
+      'Bei Perikardtamponade zusätzlich elektrischer Alternans'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { lowVoltage: 0.4 }
+  },
+  electric_alternans: {
+    name: 'Elektrischer Alternans (V.a. Perikardtamponade)',
+    category: 'structural',
+    defaults: { hr: 110, pr: 160, qrs: 90, qt: 360, axis: 60 },
+    features: [
+      'Wechselnde QRS-Amplitude von Schlag zu Schlag',
+      'Häufig kombiniert mit Niedervoltage',
+      'Klassisches Zeichen großer Perikardergüsse / Tamponade',
+      'Klinisch: Beck-Trias (Hypotonie, gestaute Halsvenen, leise Herztöne)'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { lowVoltage: 0.5, alternans: true }
+  },
+
+  // ───── PULMONALE PATHOLOGIEN (zusätzlich zu Lungenembolie) ─────
+  cor_pulmonale: {
+    name: 'Cor pulmonale (chronisch)',
+    category: 'pulmonary',
+    defaults: { hr: 90, pr: 160, qrs: 100, qt: 400, axis: 110 },
+    features: [
+      'Steiltyp bis Rechtsachsenabweichung',
+      'P-pulmonale (hohe, spitze P in II/III/aVF)',
+      'Rechtsherzhypertrophie-Zeichen (R/S > 1 in V1)',
+      'Häufig inkompletter Rechtsschenkelblock'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { pPulmonale: true, rvh: true }
+  },
+
+  // ───── ELEKTROLYT- & MEDIKAMENTEN-EFFEKTE (zusätzlich) ─────
+  digitalis_effect: {
+    name: 'Digitalis-Effekt (therapeutisch)',
+    category: 'electrolyte',
+    defaults: { hr: 65, pr: 200, qrs: 90, qt: 360, axis: 60 },
+    features: [
+      'Muldenförmige („löffelförmige") ST-Senkung',
+      'Verkürztes QT-Intervall',
+      'Abgeflachte oder negative T-Welle',
+      'Im therapeutischen Bereich – nicht gleichbedeutend mit Intoxikation'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { digitalisST: true }
+  },
+  hypercalcemia: {
+    name: 'Hyperkalzämie',
+    category: 'electrolyte',
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 300, axis: 60 },
+    features: [
+      'Verkürztes QT-Intervall (verkürzte ST-Strecke)',
+      'Bei schwerer Hyperkalzämie: Osborn-J-ähnliche Wellen',
+      'Selten: AV-Block, Bradykardie',
+      'Ursachen: Hyperparathyreoidismus, Tumor, Vit-D-Intoxikation'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+  hypocalcemia: {
+    name: 'Hypokalzämie',
+    category: 'electrolyte',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 480, axis: 60 },
+    features: [
+      'QT-Verlängerung (durch verlängerte ST-Strecke)',
+      'T-Welle bleibt morphologisch normal',
+      'Klinisch: Tetanie, Krampfneigung (Chvostek/Trousseau-Zeichen)',
+      'Risiko: Torsade-de-pointes bei zusätzlichem QT-Trigger'
+    ],
+    rhythm: 'regular', pWave: true, modifiers: {}
+  },
+
+  // ───── SONDERFORMEN & PITFALLS ─────
+  hypothermia: {
+    name: 'Hypothermie (Osborn-/J-Welle)',
+    category: 'special',
+    defaults: { hr: 45, pr: 220, qrs: 110, qt: 480, axis: 60 },
+    features: [
+      'Osborn-Welle (J-Welle): positive Auslenkung am QRS-Ende',
+      'Bradykardie, verlängertes PR, QRS und QT',
+      'Höhe der J-Welle korreliert mit Körpertemperatur',
+      'Zittern-Artefakte häufig'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { osborn: true }
+  },
+  lead_misplacement: {
+    name: 'Vertauschte Extremitäten-Ableitungen (Pitfall)',
+    category: 'special',
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    features: [
+      'Vertauschung Arm rot/gelb: I invertiert, II und III vertauscht',
+      'P-Welle in I und aVL negativ (Hinweis!)',
+      'aVR positiv statt physiologisch negativ',
+      'Häufige Verwechslung mit Situs inversus'
+    ],
+    rhythm: 'regular', pWave: true,
+    modifiers: { leadSwap: true }
+  },
+
+  // Die bestehenden Pathologien wpw, pericarditis, pulm_embolism etc. bleiben oberhalb erhalten
+};
+
+/* =========================================================================
+   ABLEITUNGS-GEOMETRIE (Cabrera-Kreis, Frontalebene)
+   ========================================================================= */
+
+const LIMB_ANGLES = {
+  I:   0,
+  II:  60,
+  III: 120,
+  aVR: -150,
+  aVL: -30,
+  aVF: 90
+};
+
+// Brustwand: R-Wellen-Progression V1→V6 (Multiplikator für R, S)
+const PRECORDIAL_R = { V1: 0.15, V2: 0.4, V3: 0.8, V4: 1.1, V5: 1.0, V6: 0.85 };
+const PRECORDIAL_S = { V1: 1.2, V2: 1.0, V3: 0.5, V4: 0.2, V5: 0.1, V6: 0.05 };
+const PRECORDIAL_P = { V1: 0.4, V2: 0.6, V3: 0.6, V4: 0.5, V5: 0.4, V6: 0.3 };
+const PRECORDIAL_T = { V1: 0.3, V2: 0.7, V3: 1.0, V4: 1.0, V5: 0.8, V6: 0.6 };
+
+const ALL_LEADS = ['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6'];
+const LIMB_LEADS = ['I','II','III','aVR','aVL','aVF'];
+const PRECORDIAL_LEADS = ['V1','V2','V3','V4','V5','V6'];
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+
+const state = {
+  pathologyId: 'sinus_normal',
+  hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60,
+  layout: 'clinical',
+  speed: 50,
+  page: 1,
+  invertAvr: false,
+  showLabels: true,
+  showCal: true,
+  artifacts: { line50: 0, muscle: 0, baseline: 0 },
+  seed: 12345
+};
+
+/* =========================================================================
+   SIGNAL-GENERIERUNG
+   ========================================================================= */
+
+const SAMPLE_RATE = 500; // 500 Hz
+
+function gauss(t, center, width, amplitude) {
+  const sigma = width / 4;
+  return amplitude * Math.exp(-((t - center) ** 2) / (2 * sigma * sigma));
+}
+
+function projectVector(magnitude, vectorAngleDeg, leadAngleDeg) {
+  const diff = (vectorAngleDeg - leadAngleDeg) * Math.PI / 180;
+  return magnitude * Math.cos(diff);
+}
+
+// Seeded random für reproduzierbare Artefakte
+let seedState = 0;
+function seedRandom(seed) { seedState = seed; }
+function rand() {
+  seedState = (seedState * 9301 + 49297) % 233280;
+  return seedState / 233280;
+}
+
+/**
+ * Erzeugt das EKG für eine bestimmte Ableitung als Array von Samples.
+ * Returns: Float32Array mit Amplituden in mV.
+ */
+function generateLead(leadName, durationSec, state) {
+  const path = PATHOLOGIES[state.pathologyId];
+  const mod = path.modifiers || {};
+  const n = Math.floor(durationSec * SAMPLE_RATE);
+  const trace = new Float32Array(n);
+
+  // Spezialfall Asystolie
+  if (mod.asystole) {
+    addArtifacts(trace, state);
+    return trace;
+  }
+
+  // Spezialfall Kammerflimmern
+  if (mod.vf) {
+    seedRandom(state.seed + leadName.charCodeAt(0));
+    let phase = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / SAMPLE_RATE;
+      phase += (4 + rand() * 6) * 2 * Math.PI / SAMPLE_RATE;
+      trace[i] = (0.4 + rand() * 0.3) * Math.sin(phase) + (rand() - 0.5) * 0.2;
+    }
+    addArtifacts(trace, state);
+    return trace;
+  }
+
+  // Achse (Lagetyp)
+  const axisDeg = state.axis;
+  const isLimb = LIMB_LEADS.includes(leadName);
+  const leadAngle = isLimb ? LIMB_ANGLES[leadName] : 0;
+
+  // QRS-Amplituden-Faktor pro Ableitung
+  let pFactor, qFactor, rFactor, sFactor, tFactor;
+  if (isLimb) {
+    pFactor = projectVector(1, 50, leadAngle);
+    rFactor = projectVector(1, axisDeg, leadAngle);
+    qFactor = projectVector(0.15, axisDeg - 30, leadAngle);
+    sFactor = projectVector(0.3, axisDeg + 150, leadAngle);
+    tFactor = projectVector(1, axisDeg + 10, leadAngle) * 0.4;
+  } else {
+    pFactor = PRECORDIAL_P[leadName];
+    rFactor = PRECORDIAL_R[leadName];
+    qFactor = -0.05;
+    sFactor = -PRECORDIAL_S[leadName];
+    tFactor = PRECORDIAL_T[leadName] * 0.3;
+  }
+
+  // Schenkelblock-Modifikation
+  if (mod.lbbb && (leadName === 'V1' || leadName === 'V2')) {
+    rFactor *= 0.2; sFactor *= 1.5;
+  }
+  if (mod.lbbb && (leadName === 'V5' || leadName === 'V6' || leadName === 'I' || leadName === 'aVL')) {
+    rFactor *= 1.3; sFactor *= 0.1;
+  }
+  if (mod.rbbb && leadName === 'V1') {
+    rFactor *= 1.5; sFactor *= 0.3;
+  }
+
+  // LVH (Linksventrikuläre Hypertrophie): hohe Amplituden lateral
+  if (mod.lvh) {
+    if (leadName === 'V1' || leadName === 'V2') { sFactor *= 1.8; }
+    if (leadName === 'V5' || leadName === 'V6') { rFactor *= 2.2; }
+    if (leadName === 'aVL' || leadName === 'I') { rFactor *= 1.6; }
+    // Strain-Pattern: ST-Senkung + T-Negativierung lateral
+    if (['V5','V6','I','aVL'].includes(leadName)) tFactor *= -0.8;
+  }
+  // RVH (Rechtsventrikuläre Hypertrophie): hohes R in V1
+  if (mod.rvh) {
+    if (leadName === 'V1') { rFactor = 1.5; sFactor = -0.3; }
+    if (leadName === 'V2') { rFactor *= 1.3; }
+    if (leadName === 'V5' || leadName === 'V6') { sFactor *= 1.8; }
+  }
+  // Posterior STEMI: hohe R in V1–V3 (Spiegelbild)
+  if (mod.posteriorR) {
+    if (leadName === 'V1') rFactor = 1.4;
+    if (leadName === 'V2') rFactor = 1.6;
+  }
+  // Tiefe Q lateral bei HCM
+  if (mod.deepLatQ && ['I','aVL','V5','V6'].includes(leadName)) {
+    qFactor *= 3;
+  }
+  // Niedervoltage (DCM, Tamponade, Erguss, Amyloidose)
+  if (mod.lowVoltage) {
+    pFactor *= mod.lowVoltage;
+    qFactor *= mod.lowVoltage;
+    rFactor *= mod.lowVoltage;
+    sFactor *= mod.lowVoltage;
+    tFactor *= mod.lowVoltage;
+  }
+  // Brugada Typ 1: coved ST-Hebung + negative T in V1–V2
+  if (mod.brugada1 && (leadName === 'V1' || leadName === 'V2')) {
+    // wird unten als stElevation behandelt
+  }
+  // Vertauschte Extremitäten-Ableitungen (Arm rot/gelb): I invertiert, II/III vertauscht
+  if (mod.leadSwap) {
+    if (leadName === 'I')   { pFactor = -pFactor; rFactor = -rFactor; qFactor = -qFactor; sFactor = -sFactor; tFactor = -tFactor; }
+    if (leadName === 'aVR') { rFactor = -rFactor; pFactor = -pFactor; tFactor = -tFactor; }
+    if (leadName === 'aVL') { rFactor = -rFactor; pFactor = -pFactor; tFactor = -tFactor; }
+  }
+
+  // Beat-Timing generieren
+  const beats = generateBeatTimes(durationSec, state);
+  const atrialBeats = mod.dissociation
+    ? generateBeatTimesAtRate(durationSec, mod.atrialRate || 80)
+    : null;
+
+  // PR-Senkung (Perikarditis)
+  const prDepression = mod.prDepression ? -0.05 : 0;
+
+  // ST-Hebung pro Ableitung
+  const stOffset = (mod.stElevation && mod.stElevation[leadName])
+    ? mod.stElevation[leadName] * 0.1 : 0;
+  // Brugada-Pattern in V1-V2: coved (Typ 1) oder saddle-back (Typ 2)
+  let brugadaST = 0;
+  if (mod.brugada1 && (leadName === 'V1' || leadName === 'V2')) brugadaST = 0.25;
+  if (mod.brugada2 && (leadName === 'V1' || leadName === 'V2')) brugadaST = 0.18;
+  // ST-Senkung global
+  const stGlobal = mod.stDepress ? -mod.stDepress * 0.1 : 0;
+
+  // T-Inversion (z.B. Lungenembolie)
+  let tInvert = 1;
+  if (mod.tInversion && mod.tInversion[leadName] !== undefined) {
+    tInvert = mod.tInversion[leadName];
+  }
+  // Brugada Typ 1: zusätzlich T-Inversion in V1-V2
+  if (mod.brugada1 && (leadName === 'V1' || leadName === 'V2')) tInvert = -1;
+
+  // Hyperkaliämie: hohe T, breiter QRS
+  if (mod.tallT) tFactor *= 2.5;
+  if (mod.flatT) tFactor *= 0.3;
+  if (mod.pFlat) pFactor *= 0.3;
+
+  // Beats zeichnen
+  const pr_s = state.pr / 1000;
+  const qrs_s = state.qrs / 1000;
+  const qt_s = state.qt / 1000;
+
+  let beatIdx = 0;
+  for (const beat of beats) {
+    beatIdx++;
+    const tBeat = beat.time;
+    const isVes = beat.ves;
+
+    // Alternans-Faktor (jeder zweite Schlag mit reduzierter Amplitude)
+    const altFactor = mod.alternans ? (beatIdx % 2 === 0 ? 0.5 : 1.0) : 1.0;
+
+    // Schrittmacher-Spike vor P-Welle (DDD/AAI)
+    if (mod.pacedA) {
+      addWave(trace, tBeat - pr_s + 0.015, 0.004, 0.5 * (leadName === 'aVR' ? -1 : 1), durationSec);
+    }
+    // Schrittmacher-Spike vor QRS (VVI/DDD)
+    if (mod.pacedV) {
+      addWave(trace, tBeat - qrs_s * 0.6, 0.004, 0.8 * (leadName === 'aVR' ? -1 : 1), durationSec);
+    }
+    // Failure to Capture: jeder 3. Spike ohne nachfolgenden QRS
+    if (mod.failCapture && beatIdx % 3 === 0) continue;
+    // Undersensing: zusätzlicher unangemessener Spike inmitten des Zyklus
+    if (mod.undersense && beatIdx % 4 === 0) {
+      addWave(trace, tBeat + 0.15, 0.004, 0.7 * (leadName === 'aVR' ? -1 : 1), durationSec);
+    }
+    // Oversensing: Hemmung der Stimulation – jeder 2. Schlag ausgelassen
+    if (mod.oversense && beatIdx % 2 === 0) continue;
+    // SA-Block: jeder n-te Schlag fehlt komplett
+    if (mod.saBlock && beatIdx % (mod.saRatio || 4) === 0) continue;
+    // Sinusarrest: lange Pause an bestimmter Stelle
+    if (mod.arrest && beatIdx % (mod.arrestEvery || 5) === 0) continue;
+
+    // Bei VHF/Flattern: keine P-Welle, dafür f-/F-Wellen separat
+    if (path.pWave && !isVes && beat.hasP !== false) {
+      const pCenter = tBeat - pr_s + 0.04;
+      const pWidth = 0.08;
+      let pAmpFactor = 0.15 * pFactor;
+      // P-pulmonale: hohe spitze P
+      if (mod.pPulmonale && ['II','III','aVF'].includes(leadName)) pAmpFactor *= 2.2;
+      // P-mitrale: breite doppelgipflige P (Vereinfachung: nur Verbreiterung)
+      if (mod.pMitrale) {
+        addWave(trace, pCenter - 0.03, 0.06, 0.10 * pFactor, durationSec);
+        addWave(trace, pCenter + 0.03, 0.06, 0.10 * pFactor, durationSec);
+        pAmpFactor = 0;
+      }
+      // Multifokale atriale Tachy / Wandering Pacemaker: variable P-Morphologie
+      if (mod.multifocalP) {
+        const morphIdx = beatIdx % 3;
+        pAmpFactor *= [1, 0.4, -0.5][morphIdx];
+      }
+      // Ektopische P (atriale Tachy): umgekehrte/abgeflachte P
+      if (mod.ectopicP && ['II','III','aVF'].includes(leadName)) pAmpFactor *= -0.6;
+      addWave(trace, pCenter, pWidth, pAmpFactor + prDepression, durationSec);
+    }
+
+    // QRS
+    let qrsW = qrs_s;
+    let amp = 1.0 * altFactor;
+    if (isVes || mod.wideQrs) {
+      qrsW = Math.max(0.14, qrs_s);
+      amp = 1.6 * altFactor;
+    }
+    if (mod.lbbb || mod.rbbb) qrsW = Math.max(0.13, qrs_s);
+
+    // Polymorphe VT: variable QRS-Achse
+    let polyShift = 1;
+    if (mod.polymorphic) polyShift = Math.cos(beatIdx * 0.7);
+    // Torsade: stark variable Achse (Spitzenumkehr)
+    if (mod.torsade) polyShift = Math.cos(beatIdx * 0.5);
+
+    // Q
+    addWave(trace, tBeat - qrsW * 0.4, qrsW * 0.2, qFactor * amp * polyShift, durationSec);
+    // R
+    if (!mod.lbbb || (leadName !== 'V1' && leadName !== 'V2')) {
+      addWave(trace, tBeat, qrsW * 0.4, rFactor * amp * polyShift, durationSec);
+    }
+    // S
+    addWave(trace, tBeat + qrsW * 0.35, qrsW * 0.25, sFactor * amp * polyShift, durationSec);
+
+    // Osborn-Welle (Hypothermie): positive Auslenkung direkt nach QRS-Ende
+    if (mod.osborn) {
+      addWave(trace, tBeat + qrsW * 0.55, 0.04, 0.25 * Math.abs(rFactor || 0.5), durationSec);
+    }
+    // Epsilon-Welle (ARVC): kleine Welle nach QRS in V1-V3
+    if (mod.epsilon && ['V1','V2','V3'].includes(leadName)) {
+      addWave(trace, tBeat + qrsW * 0.7, 0.03, 0.1, durationSec);
+    }
+
+    // Delta-Welle bei WPW
+    if (mod.deltaWave && !isVes) {
+      addWave(trace, tBeat - qrsW * 0.55, qrsW * 0.3, 0.15 * Math.sign(rFactor || 1), durationSec);
+    }
+
+    // RSR' bei RSB
+    if (mod.rbbb && leadName === 'V1' && !isVes) {
+      addWave(trace, tBeat + qrsW * 0.5, qrsW * 0.3, 0.4, durationSec);
+    }
+
+    // ST-Segment (Offset zwischen S und T)
+    const stStart = tBeat + qrsW * 0.5;
+    const tCenter = tBeat - qrsW * 0.5 + qt_s * 0.75;
+    addPlateau(trace, stStart, tCenter - 0.05, stOffset + stGlobal + brugadaST, durationSec);
+
+    // T-Welle
+    const tWidth = qt_s * 0.4;
+    const tDir = isVes ? -1 : tInvert;
+    addWave(trace, tCenter, tWidth, tFactor * 0.8 * tDir, durationSec);
+
+    // U-Welle (Hypokaliämie)
+    if (mod.uWave) {
+      addWave(trace, tCenter + tWidth * 0.8, tWidth * 0.6, 0.05, durationSec);
+    }
+
+    // S1Q3T3
+    if (mod.s1q3t3) {
+      if (leadName === 'I') addWave(trace, tBeat + qrsW * 0.35, qrsW * 0.25, -0.2, durationSec);
+      if (leadName === 'III') {
+        addWave(trace, tBeat - qrsW * 0.4, qrsW * 0.2, -0.25, durationSec);
+        addWave(trace, tCenter, tWidth, -0.2, durationSec);
+      }
+    }
+  }
+
+  // Dissoziierte P-Wellen bei AV-Block III
+  if (atrialBeats && path.pWave) {
+    for (const beat of atrialBeats) {
+      addWave(trace, beat.time, 0.08, 0.15 * pFactor, durationSec);
+    }
+  }
+
+  // Flimmerwellen bei VHF
+  if (mod.fWaves) {
+    seedRandom(state.seed + 7 + leadName.charCodeAt(0));
+    for (let i = 0; i < n; i++) {
+      const t = i / SAMPLE_RATE;
+      trace[i] += (rand() - 0.5) * 0.08 * pFactor;
+    }
+  }
+
+  // Flatterwellen (Sägezahn 300/min) - v.a. in II, III, aVF
+  if (mod.flutterWaves) {
+    const flutterAmp = (leadName === 'II' || leadName === 'III' || leadName === 'aVF') ? 0.25 : 0.08;
+    const flutterFreq = 5; // 300/min
+    for (let i = 0; i < n; i++) {
+      const t = i / SAMPLE_RATE;
+      // Sägezahn
+      const phase = (t * flutterFreq) % 1;
+      trace[i] += (phase - 0.5) * flutterAmp * (leadName === 'aVR' ? 1 : -1);
+    }
+  }
+
+  addArtifacts(trace, state);
+  return trace;
+}
+
+function addWave(trace, centerSec, widthSec, amplitude, totalDuration) {
+  const sigma = widthSec / 4;
+  const startSec = centerSec - 3 * sigma;
+  const endSec = centerSec + 3 * sigma;
+  const startIdx = Math.max(0, Math.floor(startSec * SAMPLE_RATE));
+  const endIdx = Math.min(trace.length, Math.floor(endSec * SAMPLE_RATE));
+  for (let i = startIdx; i < endIdx; i++) {
+    const t = i / SAMPLE_RATE;
+    trace[i] += amplitude * Math.exp(-((t - centerSec) ** 2) / (2 * sigma * sigma));
+  }
+}
+
+function addPlateau(trace, startSec, endSec, level, totalDuration) {
+  if (Math.abs(level) < 0.01) return;
+  const startIdx = Math.max(0, Math.floor(startSec * SAMPLE_RATE));
+  const endIdx = Math.min(trace.length, Math.floor(endSec * SAMPLE_RATE));
+  for (let i = startIdx; i < endIdx; i++) {
+    // smoothe Übergänge
+    const rel = (i - startIdx) / Math.max(1, endIdx - startIdx);
+    const w = Math.sin(rel * Math.PI);
+    trace[i] += level * w;
+  }
+}
+
+function addArtifacts(trace, state) {
+  const n = trace.length;
+  seedRandom(state.seed + 99);
+
+  // 50 Hz Netzbrumm
+  const a50 = state.artifacts.line50 / 100 * 0.05;
+  if (a50 > 0) {
+    for (let i = 0; i < n; i++) {
+      trace[i] += a50 * Math.sin(2 * Math.PI * 50 * i / SAMPLE_RATE);
+    }
+  }
+
+  // Muskelzittern (Hochfrequenzrauschen)
+  const aMuscle = state.artifacts.muscle / 100 * 0.15;
+  if (aMuscle > 0) {
+    for (let i = 0; i < n; i++) {
+      trace[i] += (rand() - 0.5) * aMuscle;
+    }
+  }
+
+  // Grundlinienschwanken (atmungsabhängig, ~0.3 Hz)
+  const aBase = state.artifacts.baseline / 100 * 0.3;
+  if (aBase > 0) {
+    for (let i = 0; i < n; i++) {
+      trace[i] += aBase * Math.sin(2 * Math.PI * 0.3 * i / SAMPLE_RATE);
+    }
+  }
+}
+
+function generateBeatTimes(durationSec, state) {
+  const path = PATHOLOGIES[state.pathologyId];
+  const mod = path.modifiers || {};
+  const beats = [];
+
+  if (mod.asystole) return [];
+
+  const rrBase = 60 / state.hr;
+
+  if (path.rhythm === 'irregular_irregular') {
+    // VHF: stark schwankende RR
+    seedRandom(state.seed);
+    let t = rrBase * 0.5;
+    while (t < durationSec) {
+      beats.push({ time: t, hasP: false });
+      t += rrBase * (0.5 + rand() * 1.0);
+    }
+  } else if (path.rhythm === 'dissociated') {
+    // AV-Block III: regelmäßiger Kammerersatzrhythmus
+    let t = rrBase * 0.5;
+    while (t < durationSec) {
+      beats.push({ time: t, hasP: false });
+      t += rrBase;
+    }
+  } else if (path.rhythm === 'chaotic') {
+    return []; // VF wird separat behandelt
+  } else if (path.rhythm === 'ves_pattern') {
+    const every = mod.vesEvery || 4;
+    let t = rrBase * 0.5;
+    let i = 0;
+    while (t < durationSec) {
+      const ves = (i % every === every - 1);
+      beats.push({ time: t, ves, hasP: !ves });
+      t += ves ? rrBase * 0.7 : rrBase;
+      i++;
+    }
+  } else {
+    // Regelmäßig
+    let t = rrBase * 0.5;
+    let i = 0;
+    let pr = state.pr;
+    while (t < durationSec) {
+      // Wenckebach
+      if (mod.wenckebach) {
+        const phase = i % 4;
+        pr = state.pr + phase * 40;
+        if (phase === 3) { t += rrBase * 0.5; i++; continue; } // QRS-Ausfall
+      }
+      // Mobitz II
+      if (mod.mobitz2) {
+        const ratio = mod.ratio || 3;
+        if (i % ratio === ratio - 1) { t += rrBase; i++; continue; }
+      }
+      beats.push({ time: t, hasP: true });
+      t += rrBase;
+      i++;
+    }
+  }
+  return beats;
+}
+
+function generateBeatTimesAtRate(durationSec, rate) {
+  const beats = [];
+  const rr = 60 / rate;
+  let t = rr * 0.3;
+  while (t < durationSec) {
+    beats.push({ time: t });
+    t += rr;
+  }
+  return beats;
+}
+
+/* =========================================================================
+   RENDERER
+   ========================================================================= */
+
+const PX_PER_MM = 4; // 4 Pixel pro mm (HiDPI-Faktor wird zusätzlich angewendet)
+let DPR = 1;
+
+function getLayoutConfig(state) {
+  const layout = state.layout;
+  const speed = state.speed; // mm/s
+  const block = { w: 50, h: 30 }; // mm pro Ableitungs-Block
+
+  if (layout === 'clinical') {
+    // 3 Spalten × 4 Zeilen + Rhythmusstreifen
+    return {
+      pages: 1,
+      cols: 3, rows: 4,
+      grid: [
+        ['I','aVR','V1','V4'],
+        ['II','aVL','V2','V5'],
+        ['III','aVF','V3','V6']
+      ],
+      transposed: true,
+      rhythmStrip: 'II',
+      pageWidth: 3 * block.w + 20,
+      pageHeight: 4 * block.h + 30 + 20,
+      block,
+      durationPerBlock: block.w / speed, // s
+      rhythmDuration: 10
+    };
+  }
+  if (layout === 'onepage') {
+    // Extremitäten links, Brustwand rechts, eine Seite, mit Sektions-Headern
+    return {
+      pages: 1,
+      cols: 2, rows: 6,
+      grid: [
+        ['I','V1'], ['II','V2'], ['III','V3'],
+        ['aVR','V4'], ['aVL','V5'], ['aVF','V6']
+      ],
+      pageWidth: 2 * 110 + 20 + 10, // 2 Spalten 110mm + Mitten-Gap 10mm + Rand
+      pageHeight: 6 * 28 + 30,
+      block: { w: 110, h: 28 },
+      durationPerBlock: 110 / speed,
+      midGap: 10,
+      sectionLabels: ['Extremitätenableitungen (I, II, III, aVR, aVL, aVF)',
+                      'Brustwandableitungen (V1–V6)']
+    };
+  }
+  if (layout === 'split') {
+    if (state.page === 1) {
+      return {
+        pages: 2,
+        cols: 1, rows: 6,
+        leads: ['I','II','III','aVR','aVL','aVF'],
+        pageWidth: 220,
+        pageHeight: 6 * block.h + 20,
+        block: { w: 200, h: 30 },
+        durationPerBlock: 200 / speed
+      };
+    } else {
+      return {
+        pages: 2,
+        cols: 1, rows: 6,
+        leads: ['V1','V2','V3','V4','V5','V6'],
+        pageWidth: 220,
+        pageHeight: 6 * block.h + 20,
+        block: { w: 200, h: 30 },
+        durationPerBlock: 200 / speed
+      };
+    }
+  }
+  if (layout === '6x2') {
+    return {
+      pages: 1,
+      cols: 2, rows: 6,
+      grid: [
+        ['I','V1'], ['II','V2'], ['III','V3'],
+        ['aVR','V4'], ['aVL','V5'], ['aVF','V6']
+      ],
+      pageWidth: 2 * block.w + 20,
+      pageHeight: 6 * block.h + 20,
+      block,
+      durationPerBlock: block.w / speed
+    };
+  }
+  if (layout === '12x1') {
+    return {
+      pages: 1,
+      cols: 1, rows: 12,
+      leads: ALL_LEADS,
+      pageWidth: 220,
+      pageHeight: 12 * block.h + 20,
+      block: { w: 200, h: 30 },
+      durationPerBlock: 200 / speed
+    };
+  }
+  if (layout === 'rhythm') {
+    return {
+      pages: 1,
+      cols: 1, rows: 1,
+      leads: ['II'],
+      pageWidth: 260,
+      pageHeight: 50,
+      block: { w: 240, h: 30 },
+      durationPerBlock: 240 / speed
+    };
+  }
+}
+
+function drawGrid(ctx, x, y, w, h) {
+  // EKG-Papier: kleine Quadrate (1 mm), große (5 mm)
+  ctx.save();
+  // Hintergrund
+  ctx.fillStyle = '#fdf6f0';
+  ctx.fillRect(x, y, w, h);
+
+  // 1mm Raster (fein)
+  ctx.strokeStyle = '#f0c4ba';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  const mm = PX_PER_MM;
+  for (let i = 0; i <= w; i += mm) {
+    ctx.moveTo(x + i, y);
+    ctx.lineTo(x + i, y + h);
+  }
+  for (let i = 0; i <= h; i += mm) {
+    ctx.moveTo(x, y + i);
+    ctx.lineTo(x + w, y + i);
+  }
+  ctx.stroke();
+
+  // 5mm Raster (kräftig)
+  ctx.strokeStyle = '#d97766';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (let i = 0; i <= w; i += mm * 5) {
+    ctx.moveTo(x + i, y);
+    ctx.lineTo(x + i, y + h);
+  }
+  for (let i = 0; i <= h; i += mm * 5) {
+    ctx.moveTo(x, y + i);
+    ctx.lineTo(x + w, y + i);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLeadTrace(ctx, leadName, x, y, wMm, hMm, durationSec, state) {
+  // Block-Position
+  const pxW = wMm * PX_PER_MM;
+  const pxH = hMm * PX_PER_MM;
+
+  drawGrid(ctx, x, y, pxW, pxH);
+
+  // Ableitungsbeschriftung
+  if (state.showLabels) {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.fillText(leadName, x + 4, y + 14);
+  }
+
+  // Trace generieren
+  const trace = generateLead(leadName, durationSec, state);
+
+  // Invertierung
+  let invert = 1;
+  if (state.invertAvr && leadName === 'aVR') invert = -1;
+
+  // Eichzacke einzeichnen (1 mV = 10 mm)
+  let traceStartX = x;
+  if (state.showCal) {
+    const calStartX = x + 5;
+    const baselineY = y + pxH / 2;
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(calStartX, baselineY);
+    ctx.lineTo(calStartX + 2 * PX_PER_MM, baselineY);
+    ctx.lineTo(calStartX + 2 * PX_PER_MM, baselineY - 10 * PX_PER_MM);
+    ctx.lineTo(calStartX + 4 * PX_PER_MM, baselineY - 10 * PX_PER_MM);
+    ctx.lineTo(calStartX + 4 * PX_PER_MM, baselineY);
+    ctx.lineTo(calStartX + 6 * PX_PER_MM, baselineY);
+    ctx.stroke();
+    traceStartX = calStartX + 6 * PX_PER_MM;
+  }
+
+  // Trace zeichnen
+  const baselineY = y + pxH / 2;
+  const mmPerMv = 10;
+  const pxPerSec = state.speed * PX_PER_MM; // px/s
+  const traceWidthPx = pxW - (traceStartX - x);
+  const samplesAvailable = trace.length;
+  const samplesPerPx = SAMPLE_RATE / pxPerSec;
+  const numPixels = Math.floor(traceWidthPx);
+
+  ctx.strokeStyle = '#0a0a0a';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let p = 0; p < numPixels; p++) {
+    const sampleIdx = Math.floor(p * samplesPerPx);
+    if (sampleIdx >= samplesAvailable) break;
+    const mv = trace[sampleIdx] * invert;
+    const py = baselineY - mv * mmPerMv * PX_PER_MM;
+    if (p === 0) ctx.moveTo(traceStartX + p, py);
+    else ctx.lineTo(traceStartX + p, py);
+  }
+  ctx.stroke();
+}
+
+function render() {
+  const canvas = document.getElementById('ekg');
+  const config = getLayoutConfig(state);
+
+  const pageWMm = config.pageWidth;
+  const pageHMm = config.pageHeight;
+  const pageWPx = pageWMm * PX_PER_MM;
+  const pageHPx = pageHMm * PX_PER_MM;
+
+  DPR = window.devicePixelRatio || 1;
+  canvas.width = pageWPx * DPR;
+  canvas.height = pageHPx * DPR;
+  canvas.style.width = pageWPx + 'px';
+  canvas.style.height = pageHPx + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#fdf6f0';
+  ctx.fillRect(0, 0, pageWPx, pageHPx);
+
+  const block = config.block;
+  const padX = 10 * PX_PER_MM;
+  const padY = 5 * PX_PER_MM;
+
+  if (config.grid) {
+    // Grid-Layout mit benannten Spalten
+    const cols = config.grid[0].length;
+    const rows = config.grid.length;
+    const hasSectionLabels = config.sectionLabels && config.sectionLabels.length > 0;
+    const headerHeight = hasSectionLabels ? 8 * PX_PER_MM : 0;
+    const midGap = (config.midGap || 0) * PX_PER_MM;
+
+    // Section-Header zeichnen
+    if (hasSectionLabels) {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = 'bold 11px Inter, sans-serif';
+      for (let c = 0; c < cols; c++) {
+        const label = config.sectionLabels[c] || '';
+        const x = padX + c * (block.w * PX_PER_MM + midGap);
+        ctx.fillText(label, x + 4, padY + 14);
+      }
+    }
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const lead = config.grid[r][c];
+        const x = padX + c * (block.w * PX_PER_MM + midGap);
+        const y = padY + headerHeight + r * block.h * PX_PER_MM;
+        drawLeadTrace(ctx, lead, x, y, block.w, block.h, config.durationPerBlock, state);
+      }
+    }
+    // Rhythmusstreifen (nur falls definiert)
+    if (config.rhythmStrip) {
+      const x = padX;
+      const y = padY + headerHeight + rows * block.h * PX_PER_MM + 10;
+      const w = cols * block.w + (cols - 1) * (config.midGap || 0);
+      drawLeadTrace(ctx, config.rhythmStrip, x, y, w, block.h, config.rhythmDuration, state);
+    }
+  } else if (config.leads) {
+    // Lineares Layout
+    for (let i = 0; i < config.leads.length; i++) {
+      const lead = config.leads[i];
+      const row = Math.floor(i / config.cols);
+      const col = i % config.cols;
+      const x = padX + col * block.w * PX_PER_MM;
+      const y = padY + row * block.h * PX_PER_MM;
+      drawLeadTrace(ctx, lead, x, y, block.w, block.h, config.durationPerBlock, state);
+    }
+  }
+
+  // Footer
+  ctx.fillStyle = '#6b6259';
+  ctx.font = '10px Inter, sans-serif';
+  const path = PATHOLOGIES[state.pathologyId];
+  ctx.fillText(
+    `${path.name} · HF ${state.hr}/min · PQ ${state.pr} ms · QRS ${state.qrs} ms · QT ${state.qt} ms · Achse ${state.axis}° · ${state.speed} mm/s · 10 mm/mV`,
+    padX, pageHPx - 6
+  );
+
+  // Im Steuer-Modus: aktuellen State an Display-Fenster senden
+  if (!IS_DISPLAY_MODE && broadcastChannel) {
+    broadcastState();
+  }
+}
+
+/* =========================================================================
+   UI-BINDING
+   ========================================================================= */
+
+function populatePathologies() {
+  const catSel = document.getElementById('category');
+  catSel.innerHTML = '<option value="__all__">Alle Kategorien</option>';
+  for (const cat of CATEGORIES) {
+    // Nur Kategorien zeigen, die tatsächlich Pathologien enthalten
+    const count = Object.values(PATHOLOGIES).filter(p => p.category === cat.id).length;
+    if (count === 0) continue;
+    catSel.innerHTML += `<option value="${cat.id}">${cat.label} (${count})</option>`;
+  }
+  updatePathologyList();
+}
+
+function getCategoryColor(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  return cat ? cat.color : '#888';
+}
+
+function getCategoryLabel(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  return cat ? cat.label : catId;
+}
+
+function updatePathologyList() {
+  const cat = document.getElementById('category').value;
+  const search = document.getElementById('search').value.toLowerCase();
+  const sel = document.getElementById('pathology');
+  sel.innerHTML = '';
+
+  // Gruppieren nach Kategorie für optgroup-Struktur (falls "Alle" gewählt)
+  if (cat === '__all__') {
+    for (const category of CATEGORIES) {
+      const matches = Object.entries(PATHOLOGIES)
+        .filter(([id, p]) => p.category === category.id)
+        .filter(([id, p]) => !search || p.name.toLowerCase().includes(search) || category.label.toLowerCase().includes(search));
+      if (matches.length === 0) continue;
+      const group = document.createElement('optgroup');
+      group.label = '— ' + category.label + ' —';
+      for (const [id, p] of matches) {
+        const opt = document.createElement('option');
+        opt.value = id; opt.textContent = p.name;
+        group.appendChild(opt);
+      }
+      sel.appendChild(group);
+    }
+  } else {
+    for (const [id, p] of Object.entries(PATHOLOGIES)) {
+      if (p.category !== cat) continue;
+      if (search && !p.name.toLowerCase().includes(search)) continue;
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = p.name;
+      sel.appendChild(opt);
+    }
+  }
+  if (sel.options.length > 0) {
+    sel.value = sel.options[0].value || sel.querySelector('option')?.value;
+    onPathologyChange();
+  }
+}
+
+function onPathologyChange() {
+  const id = document.getElementById('pathology').value;
+  if (!PATHOLOGIES[id]) return;
+  state.pathologyId = id;
+  const p = PATHOLOGIES[id];
+  // Defaults setzen
+  state.hr = p.defaults.hr;
+  state.pr = p.defaults.pr;
+  state.qrs = p.defaults.qrs;
+  state.qt = p.defaults.qt;
+  state.axis = p.defaults.axis;
+  // UI synchronisieren
+  document.getElementById('hr').value = state.hr;
+  document.getElementById('pr').value = state.pr;
+  document.getElementById('qrs').value = state.qrs;
+  document.getElementById('qt').value = state.qt;
+  document.getElementById('axis').value = state.axis;
+  updateValueLabels();
+  // Features anzeigen mit Kategorie-Tag in Akzentfarbe
+  const ul = p.features.map(f => `<li>${f}</li>`).join('');
+  const catColor = getCategoryColor(p.category);
+  const catLabel = getCategoryLabel(p.category);
+  document.getElementById('features').innerHTML = `
+    <div style="display:inline-block;background:${catColor};color:#fff;padding:2px 8px;border-radius:3px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">${catLabel}</div>
+    <strong>Signifikante Merkmale:</strong>
+    <ul>${ul}</ul>`;
+  document.getElementById('features').style.borderLeftColor = catColor;
+  document.getElementById('features').style.background = catColor + '15'; // 15 = ~8% opacity hex
+  // Achsen-Buttons
+  setActiveAxisButton(state.axis);
+  render();
+}
+
+function setActiveAxisButton(axis) {
+  document.querySelectorAll('.axis-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.axis) === axis);
+  });
+}
+
+function updateValueLabels() {
+  document.getElementById('hr-val').textContent = state.hr;
+  document.getElementById('pr-val').textContent = state.pr;
+  document.getElementById('qrs-val').textContent = state.qrs;
+  document.getElementById('qt-val').textContent = state.qt;
+  document.getElementById('axis-val').textContent = (state.axis >= 0 ? '+' : '') + state.axis + '°';
+  // QTc nach Bazett: QTc = QT / sqrt(RR)
+  const rr = 60 / Math.max(20, state.hr);
+  const qtc = Math.round(state.qt / Math.sqrt(rr));
+  document.getElementById('qtc-val').textContent = qtc + ' ms';
+}
+
+function updatePageOptions() {
+  const pageSel = document.getElementById('page');
+  const config = getLayoutConfig(state);
+  pageSel.innerHTML = '';
+  for (let i = 1; i <= config.pages; i++) {
+    pageSel.innerHTML += `<option value="${i}">Seite ${i}</option>`;
+  }
+  if (state.page > config.pages) state.page = 1;
+  pageSel.value = state.page;
+}
+
+function exportPng() {
+  const canvas = document.getElementById('ekg');
+  const link = document.createElement('a');
+  const path = PATHOLOGIES[state.pathologyId];
+  const filename = `ekg_${state.pathologyId}_${Date.now()}.png`;
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function exportJson() {
+  const path = PATHOLOGIES[state.pathologyId];
+  const data = {
+    version: '1.0',
+    timestamp: new Date().toISOString(),
+    pathology: { id: state.pathologyId, name: path.name, features: path.features },
+    parameters: {
+      hr: state.hr, pr: state.pr, qrs: state.qrs, qt: state.qt,
+      axis: state.axis, speed: state.speed,
+      invertAvr: state.invertAvr,
+      artifacts: state.artifacts
+    },
+    layout: state.layout,
+    note: 'Generiert mit EKG-Teach Prototyp v1 – Lehrwerkzeug, keine Diagnose'
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `ekg_${state.pathologyId}_${Date.now()}.json`;
+  link.click();
+}
+
+function exportCsv() {
+  // 10 Sekunden Rohdaten aller 12 Ableitungen
+  const duration = 10;
+  const data = {};
+  for (const lead of ALL_LEADS) {
+    data[lead] = generateLead(lead, duration, state);
+  }
+  const n = data[ALL_LEADS[0]].length;
+  let csv = 'time_s,' + ALL_LEADS.join(',') + '\n';
+  for (let i = 0; i < n; i++) {
+    const t = (i / SAMPLE_RATE).toFixed(4);
+    const row = ALL_LEADS.map(l => data[l][i].toFixed(4)).join(',');
+    csv += t + ',' + row + '\n';
+  }
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `ekg_${state.pathologyId}_${Date.now()}.csv`;
+  link.click();
+}
+
+function present() {
+  document.documentElement.requestFullscreen?.();
+}
+
+/* =========================================================================
+   DOZENTENMODUS: Dual-Screen via Window Management API + BroadcastChannel
+   ========================================================================= */
+
+let broadcastChannel = null;
+let displayWindow = null;
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const IS_DISPLAY_MODE = URL_PARAMS.get('mode') === 'display';
+
+function setupBroadcastSender() {
+  if (broadcastChannel) return;
+  broadcastChannel = new BroadcastChannel('ekg_teach_sync');
+  // Beim Anfrage-Ping vom Display-Fenster aktuellen State senden
+  broadcastChannel.onmessage = (e) => {
+    if (e.data && e.data.type === 'request_state') {
+      broadcastState();
+    }
+  };
+}
+
+function broadcastState() {
+  if (!broadcastChannel) return;
+  broadcastChannel.postMessage({ type: 'state', state: { ...state } });
+}
+
+function setupBroadcastReceiver() {
+  broadcastChannel = new BroadcastChannel('ekg_teach_sync');
+  broadcastChannel.onmessage = (e) => {
+    if (e.data && e.data.type === 'state') {
+      Object.assign(state, e.data.state);
+      render();
+    }
+  };
+  // Initial-State vom Steuer-Fenster anfordern
+  broadcastChannel.postMessage({ type: 'request_state' });
+}
+
+async function openTeachingMode() {
+  const modal = document.getElementById('screenModal');
+  const list = document.getElementById('screenList');
+  const intro = document.getElementById('modalIntro');
+  list.innerHTML = '';
+
+  // Prüfen, ob Window Management API verfügbar ist
+  if ('getScreenDetails' in window) {
+    try {
+      const screenDetails = await window.getScreenDetails();
+      const screens = screenDetails.screens;
+      intro.textContent = `${screens.length} Bildschirm${screens.length === 1 ? '' : 'e'} erkannt. Auf welchem soll das EKG für die Schüler erscheinen?`;
+      screens.forEach((scr, idx) => {
+        const isPrimary = scr.isPrimary;
+        const item = document.createElement('div');
+        item.className = 'screen-item';
+        item.innerHTML = `
+          <div>
+            <div><strong>Bildschirm ${idx + 1}</strong>${scr.label ? ' · ' + scr.label : ''}</div>
+            <div class="meta">${scr.availWidth} × ${scr.availHeight} px · Position (${scr.availLeft}, ${scr.availTop})</div>
+          </div>
+          <div class="badge">${isPrimary ? 'Primär' : 'Sekundär'}</div>
+        `;
+        item.addEventListener('click', () => {
+          launchDisplayWindow(scr);
+          closeModal();
+        });
+        list.appendChild(item);
+      });
+    } catch (err) {
+      // Permission denied oder anderer Fehler
+      showFallback(list, intro, err.message);
+    }
+  } else {
+    showFallback(list, intro, null);
+  }
+
+  modal.classList.add('open');
+}
+
+function showFallback(list, intro, errMsg) {
+  intro.innerHTML = `Dein Browser unterstützt keine automatische Bildschirm-Auswahl
+    ${errMsg ? '(<em>' + errMsg + '</em>)' : ''}.<br><br>
+    <strong>Manueller Weg:</strong>
+    <ol style="text-align:left; font-size:13px; line-height:1.6; margin-top:8px; padding-left:20px;">
+      <li>Klick auf „Fenster öffnen" unten – es erscheint ein neues Fenster.</li>
+      <li>Ziehe das neue Fenster auf deinen zweiten Bildschirm (Beamer/Smartboard).</li>
+      <li>Drücke dort <kbd>F11</kbd> für Vollbild.</li>
+      <li>Steuere weiter von diesem Fenster aus – Änderungen werden live übertragen.</li>
+    </ol>
+    <em style="font-size:11px;">Tipp: Für die automatische Variante Chrome oder Edge verwenden.</em>`;
+  const btn = document.createElement('button');
+  btn.textContent = 'Fenster öffnen';
+  btn.className = '';
+  btn.style.marginTop = '12px';
+  btn.addEventListener('click', () => {
+    launchDisplayWindow(null);
+    closeModal();
+  });
+  list.appendChild(btn);
+}
+
+function launchDisplayWindow(screen) {
+  const url = window.location.pathname + '?mode=display';
+  let features = 'noopener=no,popup=yes';
+  if (screen) {
+    features += `,left=${screen.availLeft},top=${screen.availTop}`;
+    features += `,width=${screen.availWidth},height=${screen.availHeight}`;
+  } else {
+    features += ',width=1280,height=800';
+  }
+  displayWindow = window.open(url, 'ekg_display', features);
+  if (!displayWindow) {
+    alert('Das Fenster konnte nicht geöffnet werden. Bitte erlaube Popups für diese Seite.');
+    return;
+  }
+  setupBroadcastSender();
+  // Wenn auf gewünschtem Bildschirm geöffnet: Vollbild anfordern (sobald Fenster bereit)
+  if (screen) {
+    setTimeout(() => {
+      try {
+        displayWindow.document.documentElement?.requestFullscreen?.();
+      } catch (e) {}
+    }, 800);
+  }
+  // Display-Fenster fordert nach kurzer Zeit den State an – aber wir senden auch proaktiv:
+  setTimeout(broadcastState, 500);
+  setTimeout(broadcastState, 1500);
+}
+
+function closeModal() {
+  document.getElementById('screenModal').classList.remove('open');
+}
+
+function activateDisplayMode() {
+  document.body.classList.add('display-mode');
+  document.getElementById('displayHint').style.display = 'block';
+  // Beim Empfang von State neu rendern
+  setupBroadcastReceiver();
+  // ESC verlässt Vollbild ohnehin; F-Taste für Vollbild
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      document.documentElement.requestFullscreen?.();
+    }
+  });
+}
+
+function bindUI() {
+  document.getElementById('category').addEventListener('change', updatePathologyList);
+  document.getElementById('search').addEventListener('input', updatePathologyList);
+  document.getElementById('pathology').addEventListener('change', onPathologyChange);
+
+  ['hr','pr','qrs','qt','axis'].forEach(id => {
+    document.getElementById(id).addEventListener('input', e => {
+      state[id] = parseInt(e.target.value);
+      updateValueLabels();
+      if (id === 'axis') setActiveAxisButton(state.axis);
+      render();
+    });
+  });
+
+  document.querySelectorAll('.axis-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const a = parseInt(btn.dataset.axis);
+      state.axis = a;
+      document.getElementById('axis').value = a;
+      updateValueLabels();
+      setActiveAxisButton(a);
+      render();
+    });
+  });
+
+  document.getElementById('layout').addEventListener('change', e => {
+    state.layout = e.target.value;
+    state.page = 1;
+    updatePageOptions();
+    render();
+  });
+  document.getElementById('speed').addEventListener('change', e => {
+    state.speed = parseInt(e.target.value);
+    render();
+  });
+  document.getElementById('page').addEventListener('change', e => {
+    state.page = parseInt(e.target.value);
+    render();
+  });
+  document.getElementById('invertAvr').addEventListener('change', e => {
+    state.invertAvr = e.target.checked;
+    render();
+  });
+  document.getElementById('showLabels').addEventListener('change', e => {
+    state.showLabels = e.target.checked;
+    render();
+  });
+  document.getElementById('showCal').addEventListener('change', e => {
+    state.showCal = e.target.checked;
+    render();
+  });
+
+  ['art50','artMuscle','artBaseline'].forEach(id => {
+    const key = id === 'art50' ? 'line50' : id === 'artMuscle' ? 'muscle' : 'baseline';
+    document.getElementById(id).addEventListener('input', e => {
+      state.artifacts[key] = parseInt(e.target.value);
+      render();
+    });
+  });
+
+  document.getElementById('regen').addEventListener('click', () => {
+    state.seed = Math.floor(Math.random() * 100000);
+    render();
+  });
+  document.getElementById('exportPng').addEventListener('click', exportPng);
+  document.getElementById('exportJson').addEventListener('click', exportJson);
+  document.getElementById('exportCsv').addEventListener('click', exportCsv);
+  document.getElementById('present').addEventListener('click', present);
+  document.getElementById('teachMode').addEventListener('click', openTeachingMode);
+  document.getElementById('modalCancel').addEventListener('click', closeModal);
+  document.getElementById('screenModal').addEventListener('click', (e) => {
+    if (e.target.id === 'screenModal') closeModal();
+  });
+}
+
+function init() {
+  if (IS_DISPLAY_MODE) {
+    // Display-Modus: kein UI, nur EKG vom Steuer-Fenster empfangen
+    activateDisplayMode();
+    render(); // initiales Rendering mit Default-State, wird durch Broadcast überschrieben
+    return;
+  }
+  populatePathologies();
+  bindUI();
+  updateValueLabels();
+  updatePageOptions();
+  onPathologyChange();
+}
+
+init();
+</script>
+</body>
+</html>
