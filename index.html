@@ -231,6 +231,54 @@
     background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 3px;
     pointer-events: none;
   }
+  /* Disclaimer-Banner im Display-Modus */
+  body.display-mode .disclaimer-banner {
+    position: fixed; bottom: 8px; left: 0; right: 0;
+    text-align: center; color: #777; font-size: 10px;
+    background: rgba(0,0,0,0.3); padding: 4px;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+  /* Disclaimer-Modal (größer als Standard-Modal) */
+  .modal.disclaimer-modal {
+    max-width: 720px; max-height: 85vh;
+    display: flex; flex-direction: column;
+  }
+  .modal.disclaimer-modal .modal-content {
+    overflow-y: auto; padding-right: 8px;
+    font-size: 12px; line-height: 1.55;
+  }
+  .modal.disclaimer-modal h4 {
+    font-size: 13px; margin: 14px 0 4px;
+    color: var(--ink);
+  }
+  .modal.disclaimer-modal h4:first-child { margin-top: 0; }
+  .modal.disclaimer-modal p { margin: 4px 0 8px; color: #333; }
+  .modal.disclaimer-modal ul { margin: 4px 0 8px; padding-left: 20px; }
+  .modal.disclaimer-modal li { margin: 2px 0; color: #333; }
+  .modal.disclaimer-modal .accept-checkbox {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: var(--accent-soft); padding: 10px 12px;
+    border-radius: 4px; margin: 12px 0 8px;
+    font-size: 13px; cursor: pointer;
+  }
+  .modal.disclaimer-modal .accept-checkbox input { margin-top: 2px; }
+  .modal.disclaimer-modal .danger-box {
+    background: #ffe8e8; border-left: 3px solid #c72a30;
+    padding: 10px 12px; margin: 10px 0;
+    border-radius: 3px; font-size: 12px;
+  }
+  /* Disclaimer-Link im Footer */
+  .disclaimer-link {
+    display: inline; color: var(--accent); cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  .disclaimer-link:hover { color: #8a1a20; }
+  .footer-disclaimer {
+    font-size: 10px; color: var(--muted);
+    padding: 10px 0 0; line-height: 1.5;
+    border-top: 1px dashed var(--border); margin-top: 8px;
+  }
 </style>
 </head>
 <body>
@@ -347,9 +395,9 @@
         <button class="secondary" id="present">Vollbild</button>
       </div>
       <button class="teach" id="teachMode">🎓 Dozentenmodus starten</button>
-      <div class="footer-note">
-        Im Dozentenmodus erscheint das EKG auf einem zweiten Bildschirm.
-        Du behältst die Steuerung. Änderungen werden live übertragen.
+      <div class="footer-disclaimer">
+        <strong style="color: var(--accent);">⚠ Lehrwerkzeug · kein Medizinprodukt</strong><br>
+        Ausschließlich für Bildungszwecke. EKGs sind synthetisch erzeugt, kein Ersatz für ärztliche Diagnose oder reales Patientenmonitoring. Nutzung auf eigene Verantwortung. <span class="disclaimer-link" id="openDisclaimer">Vollständigen Haftungsausschluss lesen</span>
       </div>
     </div>
   </aside>
@@ -360,6 +408,9 @@
     </div>
     <div class="display-hint" id="displayHint" style="display:none">
       Dozentenmodus aktiv · Steuerung im Hauptfenster · ESC für Vollbild beenden
+    </div>
+    <div class="disclaimer-banner" id="displayBanner" style="display:none">
+      Synthetische EKGs · ausschließlich Bildungszweck · kein Medizinprodukt · keine Diagnose
     </div>
   </main>
 </div>
@@ -372,6 +423,25 @@
     <div class="screen-list" id="screenList"></div>
     <div class="modal-actions">
       <button class="secondary" id="modalCancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Haftungsausschluss -->
+<div class="modal-bg" id="disclaimerModal">
+  <div class="modal disclaimer-modal">
+    <h3 style="color: var(--accent);">Haftungsausschluss &amp; Nutzungsbedingungen</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">
+      EKG-Teach – Lehrwerkzeug zur Visualisierung synthetischer EKG-Befunde
+    </p>
+    <div class="modal-content" id="disclaimerContent"></div>
+    <label class="accept-checkbox" id="acceptLabel" style="display:none">
+      <input type="checkbox" id="acceptCheckbox">
+      <span>Ich habe diesen Haftungsausschluss vollständig gelesen, verstanden und akzeptiere die Nutzungsbedingungen. Ich verwende diese Software ausschließlich für Lehr- und Schulungszwecke und nicht zur Diagnose, Therapie oder Beurteilung realer Patienten.</span>
+    </label>
+    <div class="modal-actions">
+      <button class="secondary" id="disclaimerClose" style="display:none">Schließen</button>
+      <button id="disclaimerAccept" disabled style="display:none">Akzeptieren und fortfahren</button>
     </div>
   </div>
 </div>
@@ -2170,6 +2240,13 @@ function render() {
   const path = PATHOLOGIES[state.pathologyId];
   ctx.fillText(
     `${path.name} · HF ${state.hr}/min · PQ ${state.pr} ms · QRS ${state.qrs} ms · QT ${state.qt} ms · Achse ${state.axis}° · ${state.speed} mm/s · 10 mm/mV`,
+    padX, pageHPx - 18
+  );
+  // Disclaimer-Wasserzeichen
+  ctx.fillStyle = '#9c1f1f';
+  ctx.font = 'bold 9px Inter, sans-serif';
+  ctx.fillText(
+    'LEHRWERKZEUG · KEIN MEDIZINPRODUKT · SYNTHETISCHE EKG-DATEN · KEINE DIAGNOSE · Nutzung auf eigene Verantwortung',
     padX, pageHPx - 6
   );
 
@@ -2317,6 +2394,7 @@ function exportPng() {
 function exportJson() {
   const path = PATHOLOGIES[state.pathologyId];
   const data = {
+    _disclaimer: 'LEHRWERKZEUG · KEIN MEDIZINPRODUKT · KEINE DIAGNOSE · Generiert mit EKG-Teach. Synthetische EKG-Daten ausschließlich für Bildungs- und Schulungszwecke. Nicht zur Anwendung an Patienten oder für klinische Entscheidungen geeignet. Nutzung auf eigene Verantwortung.',
     version: '1.0',
     timestamp: new Date().toISOString(),
     pathology: { id: state.pathologyId, name: path.name, features: path.features },
@@ -2327,7 +2405,7 @@ function exportJson() {
       artifacts: state.artifacts
     },
     layout: state.layout,
-    note: 'Generiert mit EKG-Teach Prototyp v1 – Lehrwerkzeug, keine Diagnose'
+    note: 'Generiert mit EKG-Teach Prototyp – Lehrwerkzeug, keine Diagnose'
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
@@ -2344,7 +2422,14 @@ function exportCsv() {
     data[lead] = generateLead(lead, duration, state);
   }
   const n = data[ALL_LEADS[0]].length;
-  let csv = 'time_s,' + ALL_LEADS.join(',') + '\n';
+  let csv = '# LEHRWERKZEUG - KEIN MEDIZINPRODUKT - KEINE DIAGNOSE\n';
+  csv += '# Synthetische EKG-Daten ausschliesslich fuer Bildungszwecke\n';
+  csv += '# Nicht zur Anwendung an Patienten oder fuer klinische Entscheidungen\n';
+  csv += '# Generiert mit EKG-Teach am ' + new Date().toISOString() + '\n';
+  csv += '# Pathologie: ' + PATHOLOGIES[state.pathologyId].name + '\n';
+  csv += '# Parameter: HF=' + state.hr + '/min, PR=' + state.pr + 'ms, QRS=' + state.qrs + 'ms, QT=' + state.qt + 'ms, Achse=' + state.axis + 'Grad\n';
+  csv += '#\n';
+  csv += 'time_s,' + ALL_LEADS.join(',') + '\n';
   for (let i = 0; i < n; i++) {
     const t = (i / SAMPLE_RATE).toFixed(4);
     const row = ALL_LEADS.map(l => data[l][i].toFixed(4)).join(',');
@@ -2359,6 +2444,118 @@ function exportCsv() {
 
 function present() {
   document.documentElement.requestFullscreen?.();
+}
+
+/* =========================================================================
+   HAFTUNGSAUSSCHLUSS / DISCLAIMER
+   ========================================================================= */
+
+const DISCLAIMER_VERSION = '1.0';
+const DISCLAIMER_HTML = `
+<h4>1. Zweckbestimmung</h4>
+<p>EKG-Teach ist ausschließlich für <strong>Bildungs-, Lehr- und Schulungszwecke</strong> konzipiert. Die Software dient der Veranschaulichung typischer EKG-Befunde im Rahmen der innerbetrieblichen, schulischen oder hochschulischen Aus- und Weiterbildung medizinischen Fachpersonals.</p>
+<p><strong>EKG-Teach ist KEIN Medizinprodukt</strong> im Sinne der Verordnung (EU) 2017/745 (Medizinprodukteverordnung, MDR). Es ist nicht für diagnostische, therapeutische oder andere medizinische Zwecke an Patienten bestimmt und wurde nicht für diesen Zweck zugelassen, validiert oder zertifiziert.</p>
+
+<h4>2. Was diese Software ausdrücklich NICHT ist</h4>
+<ul>
+  <li>kein Diagnose- oder Diagnoseunterstützungs-Werkzeug</li>
+  <li>keine Grundlage für Behandlungsentscheidungen, Therapie, Triage oder klinische Beurteilung</li>
+  <li>kein Ersatz für reales Patientenmonitoring</li>
+  <li>kein Ersatz für ärztliche Befundung oder Konsultation</li>
+  <li>kein Ersatz für die jeweils aktuellen Leitlinien (ERC, DGK, ESC, AHA)</li>
+  <li>keine Quelle für Selbstdiagnose oder Laienberatung</li>
+  <li>nicht für die Anwendung an oder Beurteilung von Patienten geeignet oder zugelassen</li>
+  <li>nicht von einer zertifizierten Stelle als Lehrmittel akkreditiert</li>
+</ul>
+
+<h4>3. Herkunft und Charakter der Daten</h4>
+<p>Alle angezeigten EKGs werden durch ein mathematisches Vektor-/Dipol-Modell synthetisch erzeugt. Sie basieren <strong>nicht</strong> auf realen Patientenaufzeichnungen. Die generierten Signale sind didaktisch idealisiert und können von realen EKG-Befunden in Morphologie, Variabilität, Artefakten und Komplexität erheblich abweichen. Reale EKGs sind regelmäßig mehrdeutiger, vielschichtiger und artefaktreicher als die Darstellungen in diesem Werkzeug.</p>
+
+<h4>4. Keine Garantie für inhaltliche Richtigkeit</h4>
+<p>Trotz sorgfältiger Erstellung kann keine Gewähr für die Richtigkeit, Vollständigkeit, Aktualität oder Eignung der dargestellten Informationen, Befunde, diagnostischen Kriterien, Frequenz- und Intervallangaben oder klinischen Hinweise übernommen werden. Inhalte können fehlerhaft, veraltet oder didaktisch vereinfacht sein. Verbindlich sind ausschließlich die jeweils aktuell gültigen Leitlinien der medizinischen Fachgesellschaften sowie die Beurteilung durch entsprechend qualifizierte Ärzte.</p>
+
+<h4>5. Verantwortung des Anwenders</h4>
+<p>Die Nutzung dieser Software erfolgt <strong>ausschließlich auf eigene Gefahr und eigene Verantwortung</strong>. Lehrende und Schulungsverantwortliche sind verpflichtet, die dargestellten Inhalte vor Verwendung im Unterricht eigenständig auf medizinische Richtigkeit, Aktualität und didaktische Eignung zu prüfen. Eine fachärztliche Gegenprüfung der Inhalte wird ausdrücklich empfohlen.</p>
+
+<h4>6. Haftungsausschluss</h4>
+<p>Im gesetzlich zulässigen Rahmen wird <strong>keinerlei Haftung</strong> übernommen für direkte, indirekte, mittelbare oder unmittelbare Schäden, Folgeschäden, entgangene Vorteile oder sonstige Nachteile, die aus der Nutzung, der Unmöglichkeit der Nutzung oder einer Fehlnutzung dieser Software entstehen. Dies betrifft insbesondere:</p>
+<ul>
+  <li>Schäden durch fehlerhafte oder unvollständige Wissensvermittlung</li>
+  <li>Schäden durch fehlerhafte Anwendung des erworbenen Wissens am Patienten</li>
+  <li>Schäden aus technischen Mängeln, Fehlfunktionen oder Datenverlusten</li>
+  <li>Schäden aus unzulässigem Einsatz im klinischen oder diagnostischen Kontext</li>
+</ul>
+<p>Die Haftung für vorsätzlich oder grob fahrlässig verursachte Schäden sowie für die Verletzung von Leben, Körper oder Gesundheit bleibt gesetzlich unberührt.</p>
+
+<div class="danger-box">
+<strong>7. Anwendung am Patienten ausdrücklich untersagt</strong><br>
+Die Verwendung dieser Software zur Beurteilung realer Patienten-EKGs, zur Diagnoseunterstützung, im Rahmen klinischer Entscheidungen, im Rettungseinsatz oder zu Therapiezwecken ist <strong>ausdrücklich untersagt</strong>. Mit der Nutzung bestätigt jeder Anwender, dass die Software ausschließlich in einem geschlossenen Bildungs- und Schulungskontext eingesetzt wird.
+</div>
+
+<h4>8. Datenschutz</h4>
+<p>Die Software verarbeitet keine personenbezogenen Daten und führt keine Datenerhebung durch. Alle Berechnungen und Darstellungen erfolgen lokal im Browser des Anwenders. Es werden keine Daten an externe Server übertragen. Die Akzeptanz dieses Haftungsausschlusses wird ausschließlich lokal im Browser-Speicher (localStorage) abgelegt.</p>
+
+<h4>9. Urheber- und Nutzungsrechte</h4>
+<p>Diese Software ist ein nicht-kommerzielles Lehrwerkzeug. Die Nutzung im Rahmen innerbetrieblicher, schulischer oder hochschulischer Lehre ist gestattet, sofern dieser Haftungsausschluss vollständig erhalten und für die Endanwender sichtbar bleibt. Eine kommerzielle Verwertung, Weitergabe als Bestandteil kostenpflichtiger Produkte oder Integration in zertifizierte medizinische Systeme ist ohne ausdrückliche Zustimmung des Urhebers nicht gestattet.</p>
+
+<h4>10. Salvatorische Klausel</h4>
+<p>Sollten einzelne Bestimmungen dieses Haftungsausschlusses ganz oder teilweise unwirksam sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. An die Stelle der unwirksamen Bestimmung tritt die rechtlich zulässige Regelung, die dem Zweck der unwirksamen Bestimmung am nächsten kommt.</p>
+
+<h4>Quellen und Standards</h4>
+<p>Inhaltliche Bezüge basieren auf den Leitlinien des European Resuscitation Council (ERC 2025), der Deutschen Gesellschaft für Kardiologie (DGK) und der European Society of Cardiology (ESC). Die rechtliche Einordnung als Nicht-Medizinprodukt erfolgt im Sinne der MDR (EU) 2017/745, MDCG 2019-11 sowie der MDR-Klassifizierungsregel 11.</p>
+`;
+
+function showDisclaimer(forced) {
+  const modal = document.getElementById('disclaimerModal');
+  const content = document.getElementById('disclaimerContent');
+  const acceptLabel = document.getElementById('acceptLabel');
+  const acceptBtn = document.getElementById('disclaimerAccept');
+  const closeBtn = document.getElementById('disclaimerClose');
+  const checkbox = document.getElementById('acceptCheckbox');
+
+  content.innerHTML = DISCLAIMER_HTML;
+
+  if (forced) {
+    // Wenn vom User explizit über Link geöffnet: kein Zwangs-Accept nötig
+    acceptLabel.style.display = 'none';
+    acceptBtn.style.display = 'none';
+    closeBtn.style.display = 'inline-block';
+  } else {
+    // Erstaufruf: User muss zustimmen
+    acceptLabel.style.display = 'flex';
+    acceptBtn.style.display = 'inline-block';
+    closeBtn.style.display = 'none';
+    acceptBtn.disabled = true;
+    checkbox.checked = false;
+  }
+  modal.classList.add('open');
+  // Disclaimer-Modal-Content nach oben scrollen
+  setTimeout(() => { content.scrollTop = 0; }, 50);
+}
+
+function closeDisclaimer() {
+  document.getElementById('disclaimerModal').classList.remove('open');
+}
+
+function acceptDisclaimer() {
+  try {
+    localStorage.setItem('ekgteach_disclaimer_accepted', DISCLAIMER_VERSION);
+    localStorage.setItem('ekgteach_disclaimer_accepted_at', new Date().toISOString());
+  } catch (e) {
+    // localStorage nicht verfügbar (z.B. Private Mode) - Akzeptanz gilt für Session
+  }
+  closeDisclaimer();
+}
+
+function checkDisclaimerOnStartup() {
+  if (IS_DISPLAY_MODE) return; // Anzeige-Bildschirm: keine Akzeptanz nötig (Steuerfenster hat akzeptiert)
+  let accepted = null;
+  try {
+    accepted = localStorage.getItem('ekgteach_disclaimer_accepted');
+  } catch (e) {}
+  if (accepted !== DISCLAIMER_VERSION) {
+    showDisclaimer(false);
+  }
 }
 
 /* =========================================================================
@@ -2495,6 +2692,7 @@ function closeModal() {
 function activateDisplayMode() {
   document.body.classList.add('display-mode');
   document.getElementById('displayHint').style.display = 'block';
+  document.getElementById('displayBanner').style.display = 'block';
   // Beim Empfang von State neu rendern
   setupBroadcastReceiver();
   // ESC verlässt Vollbild ohnehin; F-Taste für Vollbild
@@ -2578,6 +2776,13 @@ function bindUI() {
   document.getElementById('screenModal').addEventListener('click', (e) => {
     if (e.target.id === 'screenModal') closeModal();
   });
+  // Disclaimer
+  document.getElementById('openDisclaimer').addEventListener('click', () => showDisclaimer(true));
+  document.getElementById('disclaimerClose').addEventListener('click', closeDisclaimer);
+  document.getElementById('disclaimerAccept').addEventListener('click', acceptDisclaimer);
+  document.getElementById('acceptCheckbox').addEventListener('change', (e) => {
+    document.getElementById('disclaimerAccept').disabled = !e.target.checked;
+  });
 }
 
 function init() {
@@ -2592,6 +2797,8 @@ function init() {
   updateValueLabels();
   updatePageOptions();
   onPathologyChange();
+  // Haftungsausschluss beim ersten Start anzeigen
+  checkDisclaimerOnStartup();
 }
 
 init();
