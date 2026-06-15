@@ -135,6 +135,59 @@
   }
   .features ul { margin: 4px 0 0; padding-left: 18px; }
   .features li { margin: 2px 0; }
+  /* Inline-QM-Box: Live-Validierung der aktuellen Pathologie */
+  .qm-live {
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fafafa;
+    overflow: hidden;
+    font-size: 11px;
+  }
+  .qm-live-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 10px; cursor: pointer;
+    background: #f4f4f4; border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .qm-live-head:hover { background: #ececec; }
+  .qm-live-head-left {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; color: var(--ink);
+  }
+  .qm-live-badge {
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 700;
+    color: #fff;
+  }
+  .qm-live-badge.pass { background: #5a9c5a; }
+  .qm-live-badge.warn { background: #c08400; }
+  .qm-live-badge.fail { background: #c72a30; }
+  .qm-live-list {
+    padding: 6px 10px;
+    max-height: 200px; overflow-y: auto;
+  }
+  .qm-live-list.collapsed { display: none; }
+  .qm-live-item {
+    display: flex; align-items: flex-start; gap: 6px;
+    padding: 3px 0; font-size: 11px; color: #444;
+    line-height: 1.4;
+  }
+  .qm-live-icon {
+    flex-shrink: 0; width: 14px; font-weight: bold;
+    text-align: center;
+  }
+  .qm-live-icon.pass { color: #5a9c5a; }
+  .qm-live-icon.fail { color: #c72a30; }
+  .qm-live-measured {
+    color: #888; margin-left: 4px;
+    font-family: 'JetBrains Mono', 'Menlo', monospace;
+    font-size: 10px;
+  }
+  .qm-live-empty {
+    padding: 8px 10px; color: var(--muted);
+    font-style: italic; font-size: 11px;
+  }
   .display {
     background: var(--bg); overflow: auto;
     padding: 20px; display: flex;
@@ -295,6 +348,16 @@
       <label>Rhythmus / Befund</label>
       <select id="pathology"></select>
       <div class="features" id="features"></div>
+      <div class="qm-live" id="qmLive" style="display:none">
+        <div class="qm-live-head" id="qmLiveHead">
+          <div class="qm-live-head-left">
+            <span>🔬 Selbsttest: Konsistenz</span>
+            <span class="qm-live-badge" id="qmLiveBadge">–</span>
+          </div>
+          <span style="color:#888;font-size:10px;" id="qmLiveToggle">▾</span>
+        </div>
+        <div class="qm-live-list" id="qmLiveList"></div>
+      </div>
     </div>
 
     <div class="section s-params">
@@ -395,6 +458,7 @@
         <button class="secondary" id="present">Vollbild</button>
       </div>
       <button class="teach" id="teachMode">🎓 Dozentenmodus starten</button>
+      <button class="secondary" id="qmTest" style="margin-top:6px;border-color:#2e74b5;color:#2e74b5;">🔬 QM-Selbsttest ausführen</button>
       <div class="footer-disclaimer">
         <strong style="color: var(--accent);">⚠ Lehrwerkzeug · kein Medizinprodukt</strong><br>
         Ausschließlich für Bildungszwecke. EKGs sind synthetisch erzeugt, kein Ersatz für ärztliche Diagnose oder reales Patientenmonitoring. Nutzung auf eigene Verantwortung. <span class="disclaimer-link" id="openDisclaimer">Vollständigen Haftungsausschluss lesen</span>
@@ -2238,11 +2302,14 @@ function render() {
   ctx.fillStyle = '#6b6259';
   ctx.font = '10px Inter, sans-serif';
   const path = PATHOLOGIES[state.pathologyId];
-  ctx.fillText(
-    `${path.name} · HF ${state.hr}/min · PQ ${state.pr} ms · QRS ${state.qrs} ms · QT ${state.qt} ms · Achse ${state.axis}° · ${state.speed} mm/s · 10 mm/mV`,
-    padX, pageHPx - 18
-  );
-  // Disclaimer-Wasserzeichen
+  // Im Dozentenmodus (Anzeige-Bildschirm für Schüler) den Pathologie-Namen
+  // verbergen, damit die Lösung nicht verraten wird. Parameter bleiben
+  // sichtbar wie auf einem realen EKG-Ausdruck.
+  const footerText = IS_DISPLAY_MODE
+    ? `HF ${state.hr}/min · PQ ${state.pr} ms · QRS ${state.qrs} ms · QT ${state.qt} ms · Achse ${state.axis}° · ${state.speed} mm/s · 10 mm/mV`
+    : `${path.name} · HF ${state.hr}/min · PQ ${state.pr} ms · QRS ${state.qrs} ms · QT ${state.qt} ms · Achse ${state.axis}° · ${state.speed} mm/s · 10 mm/mV`;
+  ctx.fillText(footerText, padX, pageHPx - 18);
+  // Disclaimer-Wasserzeichen (immer sichtbar)
   ctx.fillStyle = '#9c1f1f';
   ctx.font = 'bold 9px Inter, sans-serif';
   ctx.fillText(
@@ -2350,6 +2417,7 @@ function onPathologyChange() {
   // Achsen-Buttons
   setActiveAxisButton(state.axis);
   render();
+  qmTestCurrent();
 }
 
 function setActiveAxisButton(axis) {
@@ -2559,6 +2627,559 @@ function checkDisclaimerOnStartup() {
 }
 
 /* =========================================================================
+   QUALITÄTSMANAGEMENT (QM): Selbsttest der EKG-Generierung
+   Prüft, ob die generierten Signale die deklarierten Pathologie-Merkmale
+   tatsächlich enthalten – literaturbasierte Schwellenwerte (ESC, DGK).
+   ========================================================================= */
+
+// ─── Signal-Analyse-Funktionen ───
+
+function qmDetectRPeaks(trace, sampleRate) {
+  // Findet R-Spitzen über adaptive Schwellwert-Detektion
+  const minDistSamples = Math.floor(0.2 * sampleRate); // mind. 200ms Abstand
+  let maxAbs = 0;
+  for (let i = 0; i < trace.length; i++) {
+    if (Math.abs(trace[i]) > maxAbs) maxAbs = Math.abs(trace[i]);
+  }
+  if (maxAbs < 0.15) return []; // kein erkennbares Signal
+  const threshold = maxAbs * 0.5;
+  const peaks = [];
+  for (let i = 3; i < trace.length - 3; i++) {
+    if (Math.abs(trace[i]) < threshold) continue;
+    let isLocalMax = true;
+    for (let j = -3; j <= 3; j++) {
+      if (j === 0) continue;
+      if (Math.abs(trace[i + j]) > Math.abs(trace[i])) { isLocalMax = false; break; }
+    }
+    if (isLocalMax) {
+      if (peaks.length === 0 || i - peaks[peaks.length - 1] >= minDistSamples) {
+        peaks.push(i);
+      }
+    }
+  }
+  return peaks;
+}
+
+function qmMeasureHR(peaks, sampleRate) {
+  if (peaks.length < 2) return null;
+  const rr = [];
+  for (let i = 1; i < peaks.length; i++) rr.push((peaks[i] - peaks[i - 1]) / sampleRate);
+  const mean = rr.reduce((a, b) => a + b, 0) / rr.length;
+  return 60 / mean;
+}
+
+function qmMeasureRRCV(peaks, sampleRate) {
+  // Variationskoeffizient (Standardabweichung / Mittelwert) der RR-Abstände
+  if (peaks.length < 3) return 0;
+  const rr = [];
+  for (let i = 1; i < peaks.length; i++) rr.push((peaks[i] - peaks[i - 1]) / sampleRate);
+  const mean = rr.reduce((a, b) => a + b, 0) / rr.length;
+  const variance = rr.reduce((s, v) => s + (v - mean) ** 2, 0) / rr.length;
+  return Math.sqrt(variance) / mean;
+}
+
+function qmMeasureQRSWidth(trace, peaks, sampleRate) {
+  if (peaks.length === 0) return null;
+  const widths = [];
+  const window = Math.floor(0.12 * sampleRate); // ±120ms Suchfenster
+  for (const peak of peaks) {
+    const peakAmp = Math.abs(trace[peak]);
+    const threshold = peakAmp * 0.15;
+    let start = peak, end = peak;
+    for (let i = peak - 1; i >= Math.max(0, peak - window); i--) {
+      if (Math.abs(trace[i]) < threshold) { start = i; break; }
+    }
+    for (let i = peak + 1; i < Math.min(trace.length, peak + window); i++) {
+      if (Math.abs(trace[i]) < threshold) { end = i; break; }
+    }
+    widths.push((end - start) / sampleRate * 1000);
+  }
+  return widths.reduce((a, b) => a + b, 0) / widths.length;
+}
+
+function qmMeasureSTLevel(trace, peaks, sampleRate) {
+  // ST-Level: 80ms nach R-Spitze, gemittelt über alle Beats
+  if (peaks.length === 0) return 0;
+  const stOffset = Math.floor(0.08 * sampleRate);
+  let sum = 0, count = 0;
+  for (const peak of peaks) {
+    const idx = peak + stOffset;
+    if (idx < trace.length) { sum += trace[idx]; count++; }
+  }
+  return count > 0 ? sum / count : 0;
+}
+
+function qmMeasureTPolarity(trace, peaks, sampleRate) {
+  // T-Welle: 250-400ms nach R, gemittelte Amplitude
+  if (peaks.length === 0) return 0;
+  let sum = 0, count = 0;
+  const tStart = Math.floor(0.20 * sampleRate);
+  const tEnd = Math.floor(0.40 * sampleRate);
+  for (const peak of peaks) {
+    if (peak + tEnd >= trace.length) continue;
+    let maxAbs = 0, maxVal = 0;
+    for (let i = peak + tStart; i < peak + tEnd; i++) {
+      if (Math.abs(trace[i]) > maxAbs) { maxAbs = Math.abs(trace[i]); maxVal = trace[i]; }
+    }
+    sum += maxVal; count++;
+  }
+  return count > 0 ? sum / count : 0;
+}
+
+function qmDetectPWave(trace, peaks, sampleRate) {
+  // P-Wellen-Suche: 50-200ms vor R-Spitze
+  if (peaks.length === 0) return { present: false, amplitude: 0 };
+  const pStart = Math.floor(0.20 * sampleRate);
+  const pEnd = Math.floor(0.05 * sampleRate);
+  let presentCount = 0, ampSum = 0;
+  for (const peak of peaks) {
+    if (peak - pStart < 0) continue;
+    let maxAbs = 0, maxVal = 0;
+    for (let i = peak - pStart; i < peak - pEnd; i++) {
+      if (Math.abs(trace[i]) > maxAbs) { maxAbs = Math.abs(trace[i]); maxVal = trace[i]; }
+    }
+    if (Math.abs(maxVal) > 0.04) { presentCount++; ampSum += maxVal; }
+  }
+  return {
+    present: presentCount >= peaks.length * 0.6,
+    amplitude: presentCount > 0 ? ampSum / presentCount : 0
+  };
+}
+
+function qmMeasureAxis(amplI, amplF) {
+  // QRS-Achse aus orthogonalen Ableitungen I (0°) und aVF (90°)
+  return Math.atan2(amplF, amplI) * 180 / Math.PI;
+}
+
+function qmMeasureNetQRS(trace, peaks) {
+  // Netto-QRS-Amplitude (R - S) gemittelt
+  if (peaks.length === 0) return 0;
+  let sum = 0;
+  for (const peak of peaks) sum += trace[peak];
+  return sum / peaks.length;
+}
+
+function qmDetectPacingSpikes(trace, sampleRate) {
+  // Schrittmacher-Spikes: sehr schmale, hohe Pulse (Breite < 10ms, |Amp| > 0.4mV)
+  const spikes = [];
+  for (let i = 2; i < trace.length - 2; i++) {
+    const v = Math.abs(trace[i]);
+    if (v < 0.4) continue;
+    if (Math.abs(trace[i - 2]) < 0.2 && Math.abs(trace[i + 2]) < 0.2) {
+      spikes.push(i);
+    }
+  }
+  return spikes;
+}
+
+// ─── Test-Generator: leitet Erwartungen aus Pathologie-Definition ab ───
+
+function qmGenerateTests(pathId, path) {
+  const tests = [];
+  const mod = path.modifiers || {};
+  const d = path.defaults || {};
+
+  // Spezialfälle ohne sinnvolle Standard-Tests
+  if (mod.asystole) {
+    tests.push({ id: 'flat', label: 'Nulllinie (keine R-Spitzen)', type: 'noBeats' });
+    return tests;
+  }
+  if (mod.vf) {
+    tests.push({ id: 'chaos', label: 'Chaotische Aktivität ohne erkennbare QRS', type: 'noBeats' });
+    return tests;
+  }
+
+  // Herzfrequenz
+  if (d.hr > 30) {
+    tests.push({
+      id: 'hr', label: `Herzfrequenz ≈ ${d.hr}/min`, type: 'hr',
+      expected: d.hr, tolerance: Math.max(12, d.hr * 0.18)
+    });
+  }
+  // QRS-Breite
+  if (d.qrs >= 60) {
+    tests.push({
+      id: 'qrs', label: `QRS-Breite ≈ ${d.qrs} ms`, type: 'qrsWidth',
+      expected: d.qrs, tolerance: 35
+    });
+    // Zusätzlich: breiter QRS bei Schenkelblock/VT (ESC: ≥ 120ms)
+    if (d.qrs >= 120) {
+      tests.push({
+        id: 'qrs_wide', label: 'QRS ≥ 120 ms (Schenkelblock-Kriterium)', type: 'qrsWidthMin',
+        expected: 120
+      });
+    }
+  }
+  // P-Wellen-Erwartung
+  if (path.pWave === false) {
+    tests.push({ id: 'no_p', label: 'Keine reguläre P-Welle vor QRS', type: 'pWaveAbsent' });
+  } else if (path.pWave === true && !mod.junctional) {
+    tests.push({ id: 'has_p', label: 'P-Welle vor QRS vorhanden', type: 'pWavePresent' });
+  }
+  // ST-Hebung/Senkung pro Ableitung
+  if (mod.stElevation) {
+    for (const [lead, mm] of Object.entries(mod.stElevation)) {
+      const isPos = mm > 0;
+      tests.push({
+        id: 'st_' + lead, label: `ST-${isPos ? 'Hebung' : 'Senkung'} in ${lead} (~${Math.abs(mm).toFixed(1)} mm)`,
+        type: 'stLevel', lead: lead,
+        expected: mm * 0.1, // mm → mV
+        direction: isPos ? 'pos' : 'neg'
+      });
+    }
+  }
+  // Brugada: ST-Hebung in V1/V2
+  if (mod.brugada1 || mod.brugada2) {
+    tests.push({ id: 'st_v1_brug', label: 'ST-Hebung in V1 (Brugada-Muster)', type: 'stLevel', lead: 'V1', expected: 0.2, direction: 'pos' });
+    tests.push({ id: 'st_v2_brug', label: 'ST-Hebung in V2 (Brugada-Muster)', type: 'stLevel', lead: 'V2', expected: 0.2, direction: 'pos' });
+  }
+  // T-Inversion
+  if (mod.tInversion) {
+    for (const [lead, val] of Object.entries(mod.tInversion)) {
+      if (val < 0) {
+        tests.push({
+          id: 't_inv_' + lead, label: `T-Negativierung in ${lead}`,
+          type: 'tPolarity', lead: lead, direction: 'neg'
+        });
+      }
+    }
+  }
+  // Absolute Arrhythmie (Vorhofflimmern, MAT, Wandering Pacemaker)
+  if (path.rhythm === 'irregular_irregular') {
+    tests.push({
+      id: 'irregular', label: 'Unregelmäßige RR-Abstände (CV > 0,10)',
+      type: 'rrVariability', minCV: 0.10
+    });
+  }
+  // QT-Verlängerung (Long QT, Hypokaliämie)
+  if (d.qt >= 460) {
+    tests.push({
+      id: 'qt_long', label: `QT-Intervall ≥ 460 ms (Voreinstellung: ${d.qt} ms)`,
+      type: 'qtMin', expected: 460
+    });
+  }
+  // QT-Verkürzung (Short QT, Hyperkalzämie)
+  if (d.qt > 0 && d.qt <= 320) {
+    tests.push({
+      id: 'qt_short', label: `QT-Intervall ≤ 320 ms (Voreinstellung: ${d.qt} ms)`,
+      type: 'qtMax', expected: 320
+    });
+  }
+  // Achsenabweichung (klinisch relevant außerhalb -30° bis +90°)
+  if (d.axis !== undefined) {
+    if (d.axis < -30) tests.push({ id: 'axis_left', label: `Linksachse (≈ ${d.axis}°)`, type: 'axisLeft' });
+    if (d.axis > 100) tests.push({ id: 'axis_right', label: `Rechtsachse (≈ ${d.axis}°)`, type: 'axisRight' });
+  }
+  // Schrittmacher-Spikes
+  if (mod.pacedV) {
+    tests.push({ id: 'spike_v', label: 'Ventrikulärer Schrittmacher-Spike erkennbar', type: 'pacingSpikes', minCount: 5 });
+  }
+  if (mod.pacedA) {
+    tests.push({ id: 'spike_a', label: 'Atrialer Schrittmacher-Spike erkennbar', type: 'pacingSpikes', minCount: 5 });
+  }
+  // LVH: hohe Amplitude in V5/V6 (Sokolow-Lyon vereinfacht: R in V5 > 1,5 mV)
+  if (mod.lvh) {
+    tests.push({ id: 'lvh_amp', label: 'Erhöhte R-Amplitude in V5 (Sokolow-Hinweis)', type: 'rAmpMin', lead: 'V5', expected: 0.7 });
+  }
+  // RVH: hohes R in V1 (R/S > 1)
+  if (mod.rvh) {
+    tests.push({ id: 'rvh_amp', label: 'Erhöhte R-Amplitude in V1 (RVH-Hinweis)', type: 'rAmpMin', lead: 'V1', expected: 0.5 });
+  }
+  // Niedervoltage
+  if (mod.lowVoltage) {
+    tests.push({ id: 'low_volt', label: 'Reduzierte QRS-Amplitude in Extremitätenableitungen (< 0,5 mV)', type: 'lowVoltage' });
+  }
+  return tests;
+}
+
+// ─── Test-Auswerter: führt einen Test gegen das generierte Signal aus ───
+
+function qmEvaluateTest(test, traces, sampleRate) {
+  const peaksII = qmDetectRPeaks(traces['II'], sampleRate);
+
+  switch (test.type) {
+    case 'noBeats': {
+      const peaksTotal = peaksII.length;
+      // Asystolie/VF: < 4 erkennbare R-Spitzen in 10s erwartet (VF wird wegen Chaos manchmal als Beats erkannt)
+      const passed = peaksTotal === 0 || peaksTotal >= 30; // Asystolie=0, VF=viele kleine Peaks
+      return { ...test, measured: `${peaksTotal} Peaks`, passed };
+    }
+    case 'hr': {
+      const hr = qmMeasureHR(peaksII, sampleRate);
+      if (hr === null) return { ...test, measured: 'n.b.', passed: false };
+      const diff = Math.abs(hr - test.expected);
+      return { ...test, measured: hr.toFixed(0) + '/min', passed: diff <= test.tolerance };
+    }
+    case 'qrsWidth': {
+      const w = qmMeasureQRSWidth(traces['II'], peaksII, sampleRate);
+      if (w === null) return { ...test, measured: 'n.b.', passed: false };
+      const diff = Math.abs(w - test.expected);
+      return { ...test, measured: w.toFixed(0) + ' ms', passed: diff <= test.tolerance };
+    }
+    case 'qrsWidthMin': {
+      const w = qmMeasureQRSWidth(traces['II'], peaksII, sampleRate);
+      if (w === null) return { ...test, measured: 'n.b.', passed: false };
+      return { ...test, measured: w.toFixed(0) + ' ms', passed: w >= test.expected - 15 };
+    }
+    case 'pWavePresent': {
+      const p = qmDetectPWave(traces['II'], peaksII, sampleRate);
+      return { ...test, measured: p.present ? `vorhanden (${(p.amplitude * 1000).toFixed(0)} µV)` : 'nicht erkannt', passed: p.present };
+    }
+    case 'pWaveAbsent': {
+      const p = qmDetectPWave(traces['II'], peaksII, sampleRate);
+      return { ...test, measured: p.present ? 'fehlerhaft vorhanden' : 'fehlt (erwartet)', passed: !p.present };
+    }
+    case 'stLevel': {
+      const peaks = qmDetectRPeaks(traces[test.lead], sampleRate);
+      const peakRef = peaks.length > 0 ? peaks : peaksII;
+      const st = qmMeasureSTLevel(traces[test.lead], peakRef, sampleRate);
+      let passed;
+      if (test.direction === 'pos') passed = st >= 0.05;
+      else passed = st <= -0.05;
+      return { ...test, measured: (st * 10).toFixed(1) + ' mm', passed };
+    }
+    case 'tPolarity': {
+      const peaks = qmDetectRPeaks(traces[test.lead], sampleRate);
+      const peakRef = peaks.length > 0 ? peaks : peaksII;
+      const t = qmMeasureTPolarity(traces[test.lead], peakRef, sampleRate);
+      const passed = test.direction === 'neg' ? t < -0.03 : t > 0.03;
+      return { ...test, measured: (t * 1000).toFixed(0) + ' µV', passed };
+    }
+    case 'rrVariability': {
+      const cv = qmMeasureRRCV(peaksII, sampleRate);
+      return { ...test, measured: 'CV = ' + cv.toFixed(2), passed: cv >= test.minCV };
+    }
+    case 'qtMin':
+    case 'qtMax': {
+      // Verwende den State-Wert direkt (Generator-konform)
+      const qt = state.qt;
+      const passed = test.type === 'qtMin' ? qt >= test.expected : qt <= test.expected;
+      return { ...test, measured: qt + ' ms', passed };
+    }
+    case 'axisLeft':
+    case 'axisRight': {
+      const peaksI = qmDetectRPeaks(traces['I'], sampleRate);
+      const peakRef = peaksI.length > 0 ? peaksI : peaksII;
+      const ampI = qmMeasureNetQRS(traces['I'], peakRef);
+      const ampF = qmMeasureNetQRS(traces['aVF'], peakRef);
+      const axis = qmMeasureAxis(ampI, ampF);
+      const passed = test.type === 'axisLeft' ? axis < -30 : axis > 90;
+      return { ...test, measured: axis.toFixed(0) + '°', passed };
+    }
+    case 'pacingSpikes': {
+      const spikes = qmDetectPacingSpikes(traces['II'], sampleRate);
+      return { ...test, measured: spikes.length + ' Spikes', passed: spikes.length >= test.minCount };
+    }
+    case 'rAmpMin': {
+      const peaks = qmDetectRPeaks(traces[test.lead], sampleRate);
+      const peakRef = peaks.length > 0 ? peaks : peaksII;
+      const amp = qmMeasureNetQRS(traces[test.lead], peakRef);
+      return { ...test, measured: amp.toFixed(2) + ' mV', passed: amp >= test.expected };
+    }
+    case 'lowVoltage': {
+      let maxAmp = 0;
+      for (const lead of ['I', 'II', 'III', 'aVR', 'aVL', 'aVF']) {
+        const peaks = qmDetectRPeaks(traces[lead], sampleRate);
+        const peakRef = peaks.length > 0 ? peaks : peaksII;
+        const amp = Math.abs(qmMeasureNetQRS(traces[lead], peakRef));
+        if (amp > maxAmp) maxAmp = amp;
+      }
+      return { ...test, measured: 'max ' + maxAmp.toFixed(2) + ' mV', passed: maxAmp < 0.5 };
+    }
+    default:
+      return { ...test, measured: 'n.b.', passed: false, note: 'unbekannter Testtyp' };
+  }
+}
+
+// ─── Test-Runner über alle Pathologien ───
+
+function qmRunAllTests() {
+  const results = [];
+  const SR = SAMPLE_RATE;
+  const savedState = { ...state, artifacts: { ...state.artifacts } };
+
+  for (const [pathId, path] of Object.entries(PATHOLOGIES)) {
+    const tests = qmGenerateTests(pathId, path);
+    if (tests.length === 0) {
+      results.push({ pathId, name: path.name, category: path.category, passed: 0, total: 0, results: [], skipped: true });
+      continue;
+    }
+    // Temporären State für Generierung setzen (ohne Artefakte für saubere Messung)
+    state.pathologyId = pathId;
+    state.hr = path.defaults.hr ?? 75;
+    state.pr = path.defaults.pr ?? 160;
+    state.qrs = path.defaults.qrs ?? 90;
+    state.qt = path.defaults.qt ?? 380;
+    state.axis = path.defaults.axis ?? 60;
+    state.artifacts = { line50: 0, muscle: 0, baseline: 0 };
+
+    const traces = {};
+    for (const lead of ALL_LEADS) {
+      traces[lead] = generateLead(lead, 10, state);
+    }
+    const evals = tests.map(t => qmEvaluateTest(t, traces, SR));
+    const passed = evals.filter(e => e.passed).length;
+    results.push({
+      pathId, name: path.name, category: path.category,
+      passed, total: evals.length, results: evals
+    });
+  }
+  // State zurücksetzen
+  Object.assign(state, savedState);
+  return results;
+}
+
+function qmShowReport() {
+  const modal = document.getElementById('qmModal');
+  const content = document.getElementById('qmContent');
+  content.innerHTML = '<p style="text-align:center;padding:40px;">Führe Selbsttest aus, bitte einen Moment...</p>';
+  modal.classList.add('open');
+
+  // Test mit kleiner Verzögerung damit Modal sichtbar ist
+  setTimeout(() => {
+    const results = qmRunAllTests();
+    const totalTests = results.reduce((s, r) => s + r.total, 0);
+    const totalPassed = results.reduce((s, r) => s + r.passed, 0);
+    const passRate = totalTests > 0 ? (totalPassed / totalTests * 100).toFixed(1) : 0;
+
+    // Nach Kategorie gruppieren
+    const byCat = {};
+    for (const r of results) {
+      if (!byCat[r.category]) byCat[r.category] = [];
+      byCat[r.category].push(r);
+    }
+
+    let html = `
+      <div style="background:${passRate >= 80 ? '#e8f5e8' : passRate >= 60 ? '#fff4e0' : '#ffe8e8'};
+                  border-left: 4px solid ${passRate >= 80 ? '#5a9c5a' : passRate >= 60 ? '#c08400' : '#c72a30'};
+                  padding: 14px; border-radius: 4px; margin-bottom: 16px;">
+        <div style="font-size: 22px; font-weight: 700;">${passRate}% Test-Erfolg</div>
+        <div style="font-size: 13px; color: #555; margin-top: 4px;">
+          ${totalPassed} von ${totalTests} Kriterien erfüllt &middot; ${results.length} Pathologien geprüft
+        </div>
+        <div style="font-size: 11px; color: #777; margin-top: 6px;">
+          Geprüft werden literaturbasierte Kriterien (HF, PR/QRS/QT-Intervalle, ST-Hebungen/Senkungen,
+          T-Polarität, P-Wellen-Präsenz, Achse, Schrittmacher-Spikes, RR-Variabilität) gegen die generierten Signale.
+        </div>
+      </div>
+    `;
+
+    for (const cat of CATEGORIES) {
+      if (!byCat[cat.id]) continue;
+      const catResults = byCat[cat.id];
+      const catTotal = catResults.reduce((s, r) => s + r.total, 0);
+      const catPassed = catResults.reduce((s, r) => s + r.passed, 0);
+      html += `
+        <div style="margin-top: 14px; border-top: 1px solid #e0e0e0; padding-top: 10px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom: 6px;">
+            <div style="width:10px;height:10px;border-radius:2px;background:${cat.color};"></div>
+            <strong style="font-size: 13px;">${cat.label}</strong>
+            <span style="color: #888; font-size: 11px;">${catPassed}/${catTotal}</span>
+          </div>
+      `;
+      for (const r of catResults) {
+        if (r.skipped) {
+          html += `<div style="font-size:12px;color:#999;padding:4px 0 4px 18px;">${r.name}: <em>keine Tests definiert</em></div>`;
+          continue;
+        }
+        const rate = r.total > 0 ? r.passed / r.total : 0;
+        const color = rate >= 0.8 ? '#5a9c5a' : rate >= 0.5 ? '#c08400' : '#c72a30';
+        html += `
+          <details style="margin: 4px 0 4px 18px;">
+            <summary style="cursor:pointer; font-size: 12px; padding: 3px 0; list-style: none;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;"></span>
+              <strong>${r.name}</strong>
+              <span style="color:#888; margin-left:6px;">(${r.passed}/${r.total})</span>
+            </summary>
+            <div style="padding: 4px 0 4px 16px;">
+        `;
+        for (const e of r.results) {
+          const icon = e.passed ? '✓' : '✗';
+          const c = e.passed ? '#5a9c5a' : '#c72a30';
+          html += `
+            <div style="font-size: 11px; padding: 2px 0; color: #444;">
+              <span style="color: ${c}; font-weight: bold; display:inline-block; width:14px;">${icon}</span>
+              ${e.label}
+              <span style="color: #888; margin-left: 6px;">→ ${e.measured || 'n.b.'}</span>
+            </div>
+          `;
+        }
+        html += '</div></details>';
+      }
+      html += '</div>';
+    }
+    content.innerHTML = html;
+  }, 50);
+}
+
+function qmCloseReport() {
+  document.getElementById('qmModal').classList.remove('open');
+}
+
+// ─── Live-Test der aktuell ausgewählten Pathologie ───
+// Wird automatisch nach jeder Pathologie-Auswahl und nach Parameter-Änderungen
+// ausgeführt (debounced) und in der Inline-Box unter den Merkmalen angezeigt.
+
+let qmLiveTimer = null;
+let qmLiveCollapsed = false;
+
+function qmTestCurrent() {
+  if (IS_DISPLAY_MODE) return;
+  const path = PATHOLOGIES[state.pathologyId];
+  if (!path) return;
+  const tests = qmGenerateTests(state.pathologyId, path);
+  const box = document.getElementById('qmLive');
+  const badge = document.getElementById('qmLiveBadge');
+  const list = document.getElementById('qmLiveList');
+
+  if (tests.length === 0) {
+    box.style.display = 'block';
+    badge.textContent = '–';
+    badge.className = 'qm-live-badge';
+    badge.style.background = '#888';
+    list.innerHTML = '<div class="qm-live-empty">Für diese Pathologie sind keine automatisch prüfbaren Kriterien hinterlegt.</div>';
+    return;
+  }
+
+  // Signale generieren (ohne Artefakte, damit Messung sauber bleibt)
+  const savedArtifacts = { ...state.artifacts };
+  state.artifacts = { line50: 0, muscle: 0, baseline: 0 };
+  const traces = {};
+  for (const lead of ALL_LEADS) {
+    traces[lead] = generateLead(lead, 10, state);
+  }
+  state.artifacts = savedArtifacts;
+
+  const evals = tests.map(t => qmEvaluateTest(t, traces, SAMPLE_RATE));
+  const passed = evals.filter(e => e.passed).length;
+  const total = evals.length;
+  const rate = total > 0 ? passed / total : 1;
+
+  box.style.display = 'block';
+  badge.textContent = `${passed} / ${total}`;
+  badge.className = 'qm-live-badge ' + (rate >= 0.8 ? 'pass' : rate >= 0.5 ? 'warn' : 'fail');
+
+  list.innerHTML = '';
+  if (qmLiveCollapsed) list.classList.add('collapsed');
+  else list.classList.remove('collapsed');
+
+  for (const e of evals) {
+    const item = document.createElement('div');
+    item.className = 'qm-live-item';
+    item.innerHTML = `
+      <span class="qm-live-icon ${e.passed ? 'pass' : 'fail'}">${e.passed ? '✓' : '✗'}</span>
+      <span>${e.label}<span class="qm-live-measured">→ ${e.measured || 'n.b.'}</span></span>
+    `;
+    list.appendChild(item);
+  }
+}
+
+function qmTestCurrentDebounced() {
+  if (qmLiveTimer) clearTimeout(qmLiveTimer);
+  qmLiveTimer = setTimeout(qmTestCurrent, 180);
+}
+
+/* =========================================================================
    DOZENTENMODUS: Dual-Screen via Window Management API + BroadcastChannel
    ========================================================================= */
 
@@ -2714,6 +3335,7 @@ function bindUI() {
       updateValueLabels();
       if (id === 'axis') setActiveAxisButton(state.axis);
       render();
+      qmTestCurrentDebounced();
     });
   });
 
@@ -2725,6 +3347,7 @@ function bindUI() {
       updateValueLabels();
       setActiveAxisButton(a);
       render();
+      qmTestCurrentDebounced();
     });
   });
 
@@ -2783,6 +3406,18 @@ function bindUI() {
   document.getElementById('acceptCheckbox').addEventListener('change', (e) => {
     document.getElementById('disclaimerAccept').disabled = !e.target.checked;
   });
+  // QM-Selbsttest
+  document.getElementById('qmTest').addEventListener('click', qmShowReport);
+  document.getElementById('qmClose').addEventListener('click', qmCloseReport);
+  document.getElementById('qmModal').addEventListener('click', (e) => {
+    if (e.target.id === 'qmModal') qmCloseReport();
+  });
+  // Inline-QM-Box klappbar
+  document.getElementById('qmLiveHead').addEventListener('click', () => {
+    qmLiveCollapsed = !qmLiveCollapsed;
+    document.getElementById('qmLiveList').classList.toggle('collapsed', qmLiveCollapsed);
+    document.getElementById('qmLiveToggle').textContent = qmLiveCollapsed ? '▸' : '▾';
+  });
 }
 
 function init() {
@@ -2803,5 +3438,21 @@ function init() {
 
 init();
 </script>
+<!-- Modal: QM-Selbsttest -->
+<div class="modal-bg" id="qmModal">
+  <div class="modal disclaimer-modal">
+    <h3 style="color: #2e74b5;">🔬 QM-Selbsttest: Konsistenz EKG-Generierung</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">
+      Prüft automatisiert, ob die generierten synthetischen EKGs die literaturbasierten
+      Merkmale der jeweiligen Pathologie tatsächlich enthalten (Signal-Analyse: R-Spitzen,
+      ST-Level, QRS-Breite, P-Wellen, Achse, Schrittmacher-Spikes, RR-Variabilität).
+    </p>
+    <div class="modal-content" id="qmContent"></div>
+    <div class="modal-actions">
+      <button class="secondary" id="qmClose">Schließen</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
