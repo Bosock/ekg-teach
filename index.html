@@ -332,6 +332,92 @@
     padding: 10px 0 0; line-height: 1.5;
     border-top: 1px dashed var(--border); margin-top: 8px;
   }
+  /* Experten-Box: oben unter dem Titel */
+  .expert-box {
+    background: linear-gradient(180deg, #f5f1ea 0%, #faf7f1 100%);
+    border: 1px solid #c9b896;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0 14px;
+    font-size: 12px;
+  }
+  .expert-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .expert-title {
+    font-weight: 700; font-size: 13px; color: #4a3520;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .expert-score {
+    background: #4a3520; color: #fff;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .expert-score.s-high { background: #5a9c5a; }
+  .expert-score.s-med  { background: #c08400; }
+  .expert-score.s-low  { background: #c72a30; }
+  .expert-mode-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    background: #4a3520; color: #f5f1ea;
+  }
+  .expert-mode-tag.observer { background: #2e74b5; color: #fff; }
+  .expert-mode-tag.autopilot { background: #5a9c5a; color: #fff; }
+  .expert-message {
+    color: #3a2810; line-height: 1.45;
+    margin: 4px 0;
+  }
+  .expert-changes {
+    margin: 6px 0;
+    background: rgba(90, 156, 90, 0.10);
+    border-left: 3px solid #5a9c5a;
+    padding: 6px 10px; border-radius: 3px;
+    font-size: 11px;
+  }
+  .expert-unfixed {
+    margin: 6px 0;
+    background: rgba(199, 42, 48, 0.08);
+    border-left: 3px solid #c72a30;
+    padding: 6px 10px; border-radius: 3px;
+    font-size: 11px;
+  }
+  .expert-deviations {
+    margin: 6px 0;
+    background: rgba(46, 116, 181, 0.08);
+    border-left: 3px solid #2e74b5;
+    padding: 6px 10px; border-radius: 3px;
+    font-size: 11px;
+  }
+  .expert-deviations strong { color: #1c4a7c; }
+  .expert-changes ul, .expert-unfixed ul, .expert-deviations ul {
+    margin: 4px 0 0; padding-left: 18px;
+  }
+  .expert-changes li, .expert-unfixed li, .expert-deviations li {
+    margin: 2px 0;
+  }
+  .expert-restore-btn {
+    width: 100%;
+    padding: 7px 10px; margin-top: 6px;
+    background: #2e74b5; color: #fff;
+    border: none; border-radius: 4px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .expert-restore-btn:hover { background: #1c4a7c; }
+  .expert-controls {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed #c9b896;
+  }
+  .expert-controls label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: #6b5530;
+    margin-bottom: 4px;
+  }
+  .expert-controls input[type="range"] {
+    width: 100%; accent-color: #4a3520;
+  }
 </style>
 </head>
 <body>
@@ -339,6 +425,28 @@
   <aside class="panel">
     <h1>EKG-Teach</h1>
     <div class="subtitle">Lehrwerkzeug · Prototyp v1</div>
+
+    <div class="expert-box" id="expertBox">
+      <div class="expert-head">
+        <div class="expert-title">
+          🩺 Experte
+          <span class="expert-score s-high" id="expertScore">–</span>
+        </div>
+        <div class="expert-mode-tag autopilot" id="expertModeTag">Auto-Pilot</div>
+      </div>
+      <div class="expert-message" id="expertMessage">Bereit. Pathologie wählen oder Parameter ändern.</div>
+      <div id="expertChangesBox"></div>
+      <div id="expertUnfixedBox"></div>
+      <div id="expertDeviationsBox"></div>
+      <button class="expert-restore-btn" id="expertRestore" style="display:none">Auf Lehrbuch-Werte zurücksetzen</button>
+      <div class="expert-controls">
+        <label>
+          <span>Korrektur-Strenge (Auto-Pilot)</span>
+          <span id="strictnessValue" style="font-family:'JetBrains Mono',monospace;font-weight:700;">10 %</span>
+        </label>
+        <input type="range" id="strictness" min="0" max="100" value="10">
+      </div>
+    </div>
 
     <div class="section s-pathology">
       <h2>Pathologie</h2>
@@ -729,15 +837,19 @@ const PATHOLOGIES = {
   stemi_inferior: {
     name: 'STEMI – Hinterwandinfarkt (inferior)',
     category: 'ischemia',
-    defaults: { hr: 80, pr: 160, qrs: 90, qt: 400, axis: 60 },
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 400, axis: 60 },
     features: [
-      'ST-Hebung in II, III, aVF',
+      'ST-Hebung in II, III, aVF (sattelförmig)',
+      'III meist höher als II (RCA-typisch)',
       'Reziproke ST-Senkung in I, aVL',
       'Q-Welle (Pardée-Q) im Verlauf',
       'Häufig RCA-Verschluss; Bradykardie möglich'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { stElevation: { II: 3, III: 4, aVF: 3.5, I: -1, aVL: -1.5 } }
+    modifiers: {
+      morphPattern: 'inferior_saddle',
+      stElevation: { II: 2.5, III: 3.5, aVF: 3, I: -1.2, aVL: -2 }
+    }
   },
   stemi_anterior: {
     name: 'STEMI – Vorderwandinfarkt (anterior)',
@@ -745,37 +857,49 @@ const PATHOLOGIES = {
     defaults: { hr: 90, pr: 160, qrs: 90, qt: 400, axis: 60 },
     features: [
       'ST-Hebung in V1–V4 (anteroseptal/anterior)',
+      'Tombstone-Morphologie: konvex-aufsteigend, T-Welle verschmolzen',
       'Reziproke ST-Senkung in II, III, aVF möglich',
       'R-Verlust V1–V3 im Verlauf',
       'LAD-Verschluss; hohe Letalität'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { stElevation: { V1: 3, V2: 5, V3: 4, V4: 3, II: -1, III: -1.5 } }
+    modifiers: {
+      morphPattern: 'tombstone',
+      stElevation: { V1: 2.5, V2: 5, V3: 4.5, V4: 3, II: -1, III: -1.5, aVF: -1 }
+    }
   },
   stemi_lateral: {
     name: 'STEMI – Seitenwandinfarkt (lateral)',
     category: 'ischemia',
     defaults: { hr: 85, pr: 160, qrs: 90, qt: 400, axis: 0 },
     features: [
-      'ST-Hebung in I, aVL, V5, V6',
+      'ST-Hebung in I, aVL, V5, V6 (Tombstone-Form)',
       'Reziproke ST-Senkung in III, aVF',
       'RCX- oder Diagonalast-Verschluss'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { stElevation: { I: 2.5, aVL: 3, V5: 2.5, V6: 2, III: -1, aVF: -1 } }
+    modifiers: {
+      morphPattern: 'tombstone',
+      stElevation: { I: 2.5, aVL: 3, V5: 2.5, V6: 2, III: -1.2, aVF: -1.2 }
+    }
   },
   pericarditis: {
     name: 'Perikarditis (akut)',
     category: 'structural',
     defaults: { hr: 95, pr: 160, qrs: 90, qt: 380, axis: 60 },
     features: [
-      'Konkave ST-Hebung in fast allen Ableitungen',
-      'Keine reziproken Senkungen (außer aVR, V1)',
-      'PR-Senkung typisch (am besten in II)',
+      'Konkave („hängematten-förmige") ST-Hebung in fast allen Ableitungen',
+      'Niedrige Amplituden (typisch 1–2 mm), gleichmäßig verteilt',
+      'KEINE reziproken Senkungen (außer aVR, V1)',
+      'PR-Senkung typisch (am besten in II), PR-Hebung in aVR',
       'Niedrige QRS-Amplitude bei Perikarderguss'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { stElevation: { I: 1.5, II: 2, III: 1, aVL: 1, aVF: 1.5, V2: 1.5, V3: 2, V4: 2, V5: 1.5, V6: 1, aVR: -1 }, prDepression: true }
+    modifiers: {
+      morphPattern: 'pericarditis',
+      stElevation: { I: 1.2, II: 1.8, III: 0.8, aVL: 0.8, aVF: 1.2, V2: 1.5, V3: 1.8, V4: 1.8, V5: 1.5, V6: 1, aVR: -1 },
+      prDepression: true
+    }
   },
   pulm_embolism: {
     name: 'Lungenembolie (S1Q3T3)',
@@ -1198,13 +1322,18 @@ const PATHOLOGIES = {
     category: 'ischemia',
     defaults: { hr: 85, pr: 160, qrs: 90, qt: 400, axis: 60 },
     features: [
-      'ST-Senkung in V1–V3 als „Spiegelbild" (reziprok)',
-      'Hohe R-Zacken in V1/V2',
+      'ST-Senkung in V1–V3 als „Spiegelbild" (reziprok, deszendierend)',
+      'Hohe R-Zacken in V1/V2 (R/S > 1 in V2)',
+      'T-Wellen positiv und hoch in V1–V3',
       'Häufig mit inferiorem STEMI kombiniert',
-      'V7–V9 zeigen direkte ST-Hebung'
+      'V7–V9 (nicht dargestellt) zeigen direkte ST-Hebung'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { stElevation: { V1: -3, V2: -4, V3: -2.5 }, posteriorR: true }
+    modifiers: {
+      morphPattern: 'reciprocal',
+      stElevation: { V1: -2.5, V2: -3.5, V3: -2 },
+      posteriorR: true
+    }
   },
 
   // ───── SCHRITTMACHER-EKG ─────
@@ -1836,15 +1965,40 @@ function generateLead(leadName, durationSec, state) {
       addWave(trace, tBeat + qrsW * 0.5, qrsW * 0.3, 0.4, durationSec);
     }
 
-    // ST-Segment (Offset zwischen S und T)
+    // ST-Segment und T-Welle: morphologie-spezifisch oder Standard
     const stStart = tBeat + qrsW * 0.5;
     const tCenter = tBeat - qrsW * 0.5 + qt_s * 0.75;
-    addPlateau(trace, stStart, tCenter - 0.05, stOffset + stGlobal + brugadaST, durationSec);
-
-    // T-Welle
     const tWidth = qt_s * 0.4;
-    const tDir = isVes ? -1 : tInvert;
-    addWave(trace, tCenter, tWidth, tFactor * 0.8 * tDir, durationSec);
+    const beatEnd = tBeat - qrsW * 0.5 + qt_s * 1.05; // Ende des ST-T-Komplexes
+
+    // Prüfen, ob für diese Ableitung eine spezielle Morphologie definiert ist
+    const stMmThisLead = (mod.stElevation && mod.stElevation[leadName] !== undefined)
+      ? mod.stElevation[leadName] : 0;
+    let morphHandled = false;
+
+    if (mod.morphPattern && stMmThisLead !== 0 && !isVes) {
+      if (mod.morphPattern === 'tombstone' && stMmThisLead > 0) {
+        addTombstoneComplex(trace, stStart, beatEnd, stMmThisLead);
+        morphHandled = true;
+      } else if (mod.morphPattern === 'pericarditis' && stMmThisLead > 0) {
+        addPericarditisComplex(trace, stStart, beatEnd, stMmThisLead);
+        morphHandled = true;
+      } else if (mod.morphPattern === 'inferior_saddle' && stMmThisLead > 0) {
+        addInferiorSaddleComplex(trace, stStart, beatEnd, stMmThisLead);
+        morphHandled = true;
+      } else if ((mod.morphPattern === 'reciprocal' || mod.morphPattern === 'tombstone' ||
+                  mod.morphPattern === 'inferior_saddle') && stMmThisLead < 0) {
+        addReciprocalDepressionComplex(trace, stStart, beatEnd, stMmThisLead);
+        morphHandled = true;
+      }
+    }
+
+    if (!morphHandled) {
+      // Standard: Plateau + separate T-Welle
+      addPlateau(trace, stStart, tCenter - 0.05, stOffset + stGlobal + brugadaST, durationSec);
+      const tDir = isVes ? -1 : tInvert;
+      addWave(trace, tCenter, tWidth, tFactor * 0.8 * tDir, durationSec);
+    }
 
     // U-Welle (Hypokaliämie)
     if (mod.uWave) {
@@ -1914,6 +2068,111 @@ function addPlateau(trace, startSec, endSec, level, totalDuration) {
     const rel = (i - startIdx) / Math.max(1, endIdx - startIdx);
     const w = Math.sin(rel * Math.PI);
     trace[i] += level * w;
+  }
+}
+
+/* ─── Realistische ST-T-Morphologie-Komplexe ───
+   Diese Funktionen erzeugen die für bestimmte Pathologien typischen
+   ST-T-Verläufe (Tombstone, Perikarditis-Konkave, Inferior-Sattel).
+   Sie ersetzen für die jeweilige Pathologie die naive Plateau-+-Gauss-T-
+   Generierung durch eine zusammenhängende, morphologisch korrekte Kurve. */
+
+function addTombstoneComplex(trace, jPointSec, beatEndSec, stMm) {
+  // STEMI mit Tombstone-Pattern: konvex aufsteigend, verschmolzene T-Welle,
+  // breite asymmetrische Spitze, langsamer Abfall.
+  const startIdx = Math.max(0, Math.floor(jPointSec * SAMPLE_RATE));
+  const endIdx = Math.min(trace.length, Math.floor(beatEndSec * SAMPLE_RATE));
+  if (endIdx <= startIdx) return;
+  const stHeight = stMm * 0.1;                  // ST-Hebung am J-Punkt
+  const peakHeight = stHeight * 1.8 + 0.2;      // T-Spitze: ~1.8x ST + Basis
+  const peakRel = 0.42;                          // Spitze bei ~42% der Strecke
+  const peakIdx = startIdx + Math.floor((endIdx - startIdx) * peakRel);
+
+  for (let i = startIdx; i < endIdx; i++) {
+    let value;
+    if (i <= peakIdx) {
+      // Aufsteigender konvexer Bogen: startet bei stHeight, steigt schnell
+      const r = (i - startIdx) / Math.max(1, peakIdx - startIdx);
+      value = stHeight + (peakHeight - stHeight) * (1 - Math.pow(1 - r, 2.3));
+    } else {
+      // Absteigender langer Schwanz, asymmetrisch
+      const r = (i - peakIdx) / Math.max(1, endIdx - peakIdx);
+      value = peakHeight * Math.pow(1 - r, 1.4);
+    }
+    trace[i] += value;
+  }
+}
+
+function addPericarditisComplex(trace, jPointSec, beatEndSec, stMm) {
+  // Perikarditis: konkav aufsteigende ST-Hebung („Hängematte"), separate T-Welle.
+  // Niedrigere Amplituden als STEMI, gleichmäßig in vielen Ableitungen.
+  const startIdx = Math.max(0, Math.floor(jPointSec * SAMPLE_RATE));
+  const endIdx = Math.min(trace.length, Math.floor(beatEndSec * SAMPLE_RATE));
+  if (endIdx <= startIdx) return;
+  const stHeight = stMm * 0.1;
+  // ST-Strecke: konkav aufsteigend bis ~50%
+  const stEndRel = 0.45;
+  const stEndIdx = startIdx + Math.floor((endIdx - startIdx) * stEndRel);
+  for (let i = startIdx; i < stEndIdx; i++) {
+    const r = (i - startIdx) / Math.max(1, stEndIdx - startIdx);
+    // Konkav aufsteigend: r^1.4
+    trace[i] += stHeight * (0.4 + 0.6 * Math.pow(r, 1.4));
+  }
+  // Separate T-Welle: positives Gauss-Profil, Basis bei stHeight
+  const tCenterIdx = startIdx + Math.floor((endIdx - startIdx) * 0.72);
+  const tSigma = (endIdx - startIdx) * 0.10;
+  const tPeak = stHeight * 0.7 + 0.20;
+  for (let i = stEndIdx; i < endIdx; i++) {
+    const dist = i - tCenterIdx;
+    const value = tPeak * Math.exp(-(dist * dist) / (2 * tSigma * tSigma));
+    trace[i] += value;
+  }
+}
+
+function addInferiorSaddleComplex(trace, jPointSec, beatEndSec, stMm) {
+  // Inferior STEMI: sattelförmige ST-Hebung, geringere Tombstone-Ausprägung,
+  // T-Welle positiv und symmetrisch hoch.
+  const startIdx = Math.max(0, Math.floor(jPointSec * SAMPLE_RATE));
+  const endIdx = Math.min(trace.length, Math.floor(beatEndSec * SAMPLE_RATE));
+  if (endIdx <= startIdx) return;
+  const stHeight = stMm * 0.1;
+  const peakHeight = stHeight * 1.4 + 0.15;
+  const peakRel = 0.48;
+  const peakIdx = startIdx + Math.floor((endIdx - startIdx) * peakRel);
+  for (let i = startIdx; i < endIdx; i++) {
+    let value;
+    if (i <= peakIdx) {
+      const r = (i - startIdx) / Math.max(1, peakIdx - startIdx);
+      // Sanfter, eher linearer Anstieg mit leichter Konvexität
+      value = stHeight + (peakHeight - stHeight) * (0.3 * r + 0.7 * Math.pow(r, 1.5));
+    } else {
+      const r = (i - peakIdx) / Math.max(1, endIdx - peakIdx);
+      value = peakHeight * Math.pow(1 - r, 1.6);
+    }
+    trace[i] += value;
+  }
+}
+
+function addReciprocalDepressionComplex(trace, jPointSec, beatEndSec, stMm) {
+  // Reziproke Senkung: spiegelbildlich zur Hebung, deszendierend mit T-Inversion.
+  // stMm hier negativ (z.B. -1.5)
+  const startIdx = Math.max(0, Math.floor(jPointSec * SAMPLE_RATE));
+  const endIdx = Math.min(trace.length, Math.floor(beatEndSec * SAMPLE_RATE));
+  if (endIdx <= startIdx) return;
+  const stDepth = stMm * 0.1; // negativ
+  const peakDepth = stDepth * 1.6 - 0.10;
+  const peakRel = 0.50;
+  const peakIdx = startIdx + Math.floor((endIdx - startIdx) * peakRel);
+  for (let i = startIdx; i < endIdx; i++) {
+    let value;
+    if (i <= peakIdx) {
+      const r = (i - startIdx) / Math.max(1, peakIdx - startIdx);
+      value = stDepth + (peakDepth - stDepth) * Math.pow(r, 1.3);
+    } else {
+      const r = (i - peakIdx) / Math.max(1, endIdx - peakIdx);
+      value = peakDepth * Math.pow(1 - r, 1.4);
+    }
+    trace[i] += value;
   }
 }
 
@@ -2417,6 +2676,9 @@ function onPathologyChange() {
   // Achsen-Buttons
   setActiveAxisButton(state.axis);
   render();
+  // Experte aktivieren (Auto-Pilot bei Pathologie-Wechsel)
+  expertMode = 'autopilot';
+  expertAutoCorrect();
   qmTestCurrent();
 }
 
@@ -3180,6 +3442,258 @@ function qmTestCurrentDebounced() {
 }
 
 /* =========================================================================
+   EXPERTEN-MODUL: zweite Instanz als „mitlesender Elektrophysiologe"
+   - Auto-Pilot bei Pathologie-Auswahl: korrigiert Parameter, bis das EKG
+     literaturgetreu generiert wird (max. 5 Iterationen)
+   - Beobachter bei manueller Änderung: kommentiert Abweichungen,
+     schlägt Lehrbuch-Werte vor, greift aber nicht aktiv ein
+   - Punktesystem 0–15 (deutsche Oberstufe) je Pathologie
+   ========================================================================= */
+
+let expertMode = 'autopilot';        // 'autopilot' | 'observer'
+let expertStrictness = 10;            // % – ab welcher Abweichung wird korrigiert
+let expertRunning = false;            // Re-Entrancy-Schutz
+let expertLastResult = null;
+
+function expertGenAllLeads() {
+  const traces = {};
+  for (const lead of ALL_LEADS) {
+    traces[lead] = generateLead(lead, 10, state);
+  }
+  return traces;
+}
+
+function expertEvaluate() {
+  const path = PATHOLOGIES[state.pathologyId];
+  if (!path) return { tests: [], evals: [], passed: 0, total: 0 };
+  const tests = qmGenerateTests(state.pathologyId, path);
+  // Generierung ohne Artefakte für saubere Messung
+  const savedArt = { ...state.artifacts };
+  state.artifacts = { line50: 0, muscle: 0, baseline: 0 };
+  const traces = expertGenAllLeads();
+  state.artifacts = savedArt;
+  const evals = tests.map(t => qmEvaluateTest(t, traces, SAMPLE_RATE));
+  const passed = evals.filter(e => e.passed).length;
+  return { tests, evals, passed, total: evals.length };
+}
+
+// Versucht, einen einzelnen fehlgeschlagenen Test durch Parameter-Anpassung
+// zu reparieren. Gibt Änderungs-Objekt zurück oder null wenn nicht fixbar.
+function expertTryFix(test) {
+  const tol = expertStrictness / 100;
+  switch (test.type) {
+    case 'hr': {
+      const measured = parseFloat(test.measured);
+      if (isNaN(measured)) return null;
+      const diff = Math.abs(measured - test.expected);
+      const relErr = diff / Math.max(1, test.expected);
+      if (relErr <= tol) return null; // im akzeptierten Toleranzband
+      const old = state.hr;
+      // Generator-Input so anpassen, dass Messung näher zum Erwartungswert kommt
+      const factor = test.expected / Math.max(20, measured);
+      state.hr = Math.round(Math.max(20, Math.min(250, state.hr * factor)));
+      if (state.hr === old) return null;
+      return { param: 'HF', from: old + '/min', to: state.hr + '/min', reason: `Soll ≈ ${test.expected}/min` };
+    }
+    case 'qrsWidth':
+    case 'qrsWidthMin': {
+      const measured = parseFloat(test.measured);
+      if (isNaN(measured)) return null;
+      const target = test.expected;
+      const diff = Math.abs(measured - target);
+      if (diff <= 15) return null;
+      const old = state.qrs;
+      const correction = target - measured;
+      state.qrs = Math.round(Math.max(60, Math.min(200, state.qrs + correction)));
+      if (state.qrs === old) return null;
+      return { param: 'QRS-Breite', from: old + ' ms', to: state.qrs + ' ms', reason: `Soll ≈ ${target} ms` };
+    }
+    case 'qtMin': {
+      if (state.qt >= test.expected - 20) return null;
+      const old = state.qt;
+      state.qt = test.expected;
+      return { param: 'QT-Intervall', from: old + ' ms', to: state.qt + ' ms', reason: `Soll ≥ ${test.expected} ms` };
+    }
+    case 'qtMax': {
+      if (state.qt <= test.expected + 20) return null;
+      const old = state.qt;
+      state.qt = test.expected;
+      return { param: 'QT-Intervall', from: old + ' ms', to: state.qt + ' ms', reason: `Soll ≤ ${test.expected} ms` };
+    }
+    case 'axisLeft': {
+      if (state.axis < -30) return null;
+      const old = state.axis;
+      state.axis = -45;
+      return { param: 'Herzachse', from: old + '°', to: state.axis + '°', reason: 'Soll: Linksabweichung' };
+    }
+    case 'axisRight': {
+      if (state.axis > 100) return null;
+      const old = state.axis;
+      state.axis = 120;
+      return { param: 'Herzachse', from: old + '°', to: state.axis + '°', reason: 'Soll: Rechtsabweichung' };
+    }
+    // Strukturelle Tests (ST-Form, T-Polarität, P-Welle, Spikes, RR-CV,
+    // Voltage, Brugada-ST etc.) lassen sich nicht über die State-Parameter
+    // beeinflussen – diese gehen in die "unfixed"-Liste.
+    default:
+      return null;
+  }
+}
+
+function expertAutoCorrect() {
+  if (expertRunning) return;
+  expertRunning = true;
+  const allChanges = [];
+  let lastEvals = [];
+
+  for (let iter = 0; iter < 5; iter++) {
+    const { evals } = expertEvaluate();
+    lastEvals = evals;
+    const failed = evals.filter(e => !e.passed);
+    if (failed.length === 0) break;
+    let madeAny = false;
+    for (const test of failed) {
+      const change = expertTryFix(test);
+      if (change) { allChanges.push(change); madeAny = true; }
+    }
+    if (!madeAny) break;
+  }
+  // Finaler Lauf
+  const final = expertEvaluate();
+  expertRunning = false;
+
+  // UI-Werte synchronisieren
+  document.getElementById('hr').value = state.hr;
+  document.getElementById('pr').value = state.pr;
+  document.getElementById('qrs').value = state.qrs;
+  document.getElementById('qt').value = state.qt;
+  document.getElementById('axis').value = state.axis;
+  updateValueLabels();
+  setActiveAxisButton(state.axis);
+
+  expertLastResult = { changes: allChanges, evals: final.evals,
+                       passed: final.passed, total: final.total };
+  expertRenderUI();
+  // EKG mit ggf. korrigierten Werten neu rendern
+  render();
+}
+
+function expertObserve() {
+  // Beobachter-Modus: keine Korrektur, nur Bewertung + Vorschläge
+  const result = expertEvaluate();
+  expertLastResult = { evals: result.evals, passed: result.passed,
+                       total: result.total, deviations: result.evals.filter(e => !e.passed) };
+  expertRenderUI();
+}
+
+function expertScoreLabel(passed, total) {
+  if (total === 0) return { label: '–', score: 15, className: 's-high' };
+  const score = Math.round(15 * passed / total);
+  let className = 's-low';
+  if (score >= 13) className = 's-high';
+  else if (score >= 8) className = 's-med';
+  return { label: score + '/15', score, className };
+}
+
+function expertRenderUI() {
+  if (IS_DISPLAY_MODE) return;
+  const box = document.getElementById('expertBox');
+  const scoreEl = document.getElementById('expertScore');
+  const modeTag = document.getElementById('expertModeTag');
+  const msg = document.getElementById('expertMessage');
+  const changesBox = document.getElementById('expertChangesBox');
+  const unfixedBox = document.getElementById('expertUnfixedBox');
+  const deviationsBox = document.getElementById('expertDeviationsBox');
+  const restoreBtn = document.getElementById('expertRestore');
+
+  if (!expertLastResult || expertLastResult.total === 0) {
+    msg.textContent = 'Für diese Pathologie sind keine automatisch prüfbaren Kriterien hinterlegt.';
+    scoreEl.textContent = '–'; scoreEl.className = 'expert-score';
+    changesBox.innerHTML = ''; unfixedBox.innerHTML = ''; deviationsBox.innerHTML = '';
+    restoreBtn.style.display = 'none';
+    return;
+  }
+
+  const { passed, total, evals } = expertLastResult;
+  const sc = expertScoreLabel(passed, total);
+  scoreEl.textContent = sc.label;
+  scoreEl.className = 'expert-score ' + sc.className;
+
+  modeTag.textContent = expertMode === 'autopilot' ? 'Auto-Pilot' : 'Beobachter';
+  modeTag.className = 'expert-mode-tag ' + expertMode;
+
+  if (expertMode === 'autopilot') {
+    const changes = expertLastResult.changes || [];
+    const unfixed = evals.filter(e => !e.passed);
+
+    if (passed === total) {
+      msg.textContent = changes.length === 0
+        ? `Pathologie ist lehrbuchtreu dargestellt (${passed}/${total} Kriterien erfüllt).`
+        : `Pathologie nach ${changes.length} Anpassung${changes.length === 1 ? '' : 'en'} konsistent (${passed}/${total}).`;
+    } else {
+      msg.textContent = `${passed}/${total} Kriterien erfüllt. ${unfixed.length} Punkt${unfixed.length === 1 ? '' : 'e'} nicht durch Parameter-Anpassung lösbar.`;
+    }
+
+    if (changes.length > 0) {
+      const items = changes.map(c => `<li><strong>${c.param}:</strong> ${c.from} → ${c.to} <em>(${c.reason})</em></li>`).join('');
+      changesBox.innerHTML = `<div class="expert-changes"><strong>Automatische Anpassungen:</strong><ul>${items}</ul></div>`;
+    } else changesBox.innerHTML = '';
+
+    if (unfixed.length > 0) {
+      const items = unfixed.map(e => `<li>${e.label} <em style="color:#777">→ ${e.measured || 'n.b.'}</em></li>`).join('');
+      unfixedBox.innerHTML = `<div class="expert-unfixed"><strong>⚠ Nicht durch Parameter korrigierbar (Generierungslogik):</strong><ul>${items}</ul></div>`;
+    } else unfixedBox.innerHTML = '';
+
+    deviationsBox.innerHTML = '';
+    restoreBtn.style.display = 'none';
+
+  } else {
+    // Beobachter-Modus
+    const deviations = evals.filter(e => !e.passed);
+    if (deviations.length === 0) {
+      msg.textContent = `Deine Einstellungen sind weiterhin literaturkonform (${passed}/${total}).`;
+      deviationsBox.innerHTML = '';
+      restoreBtn.style.display = 'none';
+    } else {
+      msg.innerHTML = `<strong>Du hast manuell justiert.</strong> Aktuelle Einstellungen weichen vom Lehrbuch ab (${passed}/${total}).`;
+      const items = deviations.map(e => `<li>${e.label} <em style="color:#777">→ aktuell ${e.measured || 'n.b.'}</em></li>`).join('');
+      deviationsBox.innerHTML = `<div class="expert-deviations"><strong>Abweichungen:</strong><ul>${items}</ul></div>`;
+      restoreBtn.style.display = 'block';
+    }
+    changesBox.innerHTML = '';
+    unfixedBox.innerHTML = '';
+  }
+}
+
+function expertRestoreDefaults() {
+  const path = PATHOLOGIES[state.pathologyId];
+  if (!path) return;
+  state.hr = path.defaults.hr;
+  state.pr = path.defaults.pr;
+  state.qrs = path.defaults.qrs;
+  state.qt = path.defaults.qt;
+  state.axis = path.defaults.axis;
+  document.getElementById('hr').value = state.hr;
+  document.getElementById('pr').value = state.pr;
+  document.getElementById('qrs').value = state.qrs;
+  document.getElementById('qt').value = state.qt;
+  document.getElementById('axis').value = state.axis;
+  updateValueLabels();
+  setActiveAxisButton(state.axis);
+  expertMode = 'autopilot';
+  expertAutoCorrect();
+}
+
+let expertObserverTimer = null;
+function expertObserveDebounced() {
+  if (expertObserverTimer) clearTimeout(expertObserverTimer);
+  expertObserverTimer = setTimeout(() => {
+    expertMode = 'observer';
+    expertObserve();
+  }, 180);
+}
+
+/* =========================================================================
    DOZENTENMODUS: Dual-Screen via Window Management API + BroadcastChannel
    ========================================================================= */
 
@@ -3336,6 +3850,7 @@ function bindUI() {
       if (id === 'axis') setActiveAxisButton(state.axis);
       render();
       qmTestCurrentDebounced();
+      expertObserveDebounced();
     });
   });
 
@@ -3348,6 +3863,7 @@ function bindUI() {
       setActiveAxisButton(a);
       render();
       qmTestCurrentDebounced();
+      expertObserveDebounced();
     });
   });
 
@@ -3417,6 +3933,12 @@ function bindUI() {
     qmLiveCollapsed = !qmLiveCollapsed;
     document.getElementById('qmLiveList').classList.toggle('collapsed', qmLiveCollapsed);
     document.getElementById('qmLiveToggle').textContent = qmLiveCollapsed ? '▸' : '▾';
+  });
+  // Experten-Modul
+  document.getElementById('expertRestore').addEventListener('click', expertRestoreDefaults);
+  document.getElementById('strictness').addEventListener('input', e => {
+    expertStrictness = parseInt(e.target.value);
+    document.getElementById('strictnessValue').textContent = expertStrictness + ' %';
   });
 }
 
