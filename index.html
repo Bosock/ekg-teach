@@ -959,13 +959,17 @@ const PATHOLOGIES = {
     defaults: { hr: 75, pr: 160, qrs: 140, qt: 440, axis: 0 },
     features: [
       'QRS-Breite ≥ 120 ms',
-      'Breiter, plumper R in I, aVL, V5, V6 (M-Form)',
-      'Tiefes S oder QS in V1–V2',
-      'Diskordante ST-/T-Veränderungen',
-      'Sgarbossa-Kriterien bei V.a. STEMI'
+      'Breiter, plumper R in I, aVL, V5, V6 (M-Form mit Notch)',
+      'Tiefes QS oder rS in V1–V2 (kein dominantes R)',
+      'Diskordante ST-/T-Veränderungen (Polarität gegen QRS-Hauptrichtung)',
+      'Sgarbossa-Kriterien bei Verdacht auf gleichzeitigen STEMI prüfen'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { lbbb: true }
+    modifiers: {
+      morphPattern: 'lbbb', lbbb: true,
+      tInversion: { V5: -0.6, V6: -0.6, I: -0.5, aVL: -0.5 },
+      stElevation: { V1: 1.5, V2: 2, V5: -1, V6: -1, I: -0.8, aVL: -0.8 }
+    }
   },
   rbbb: {
     name: 'Rechtsschenkelblock (RSB)',
@@ -973,12 +977,16 @@ const PATHOLOGIES = {
     defaults: { hr: 75, pr: 160, qrs: 130, qt: 420, axis: 90 },
     features: [
       'QRS-Breite ≥ 120 ms',
-      'rSR\'-Komplex in V1 (M-Form)',
+      'rSR\'-Komplex in V1 (M-Form mit zweiter R-Welle)',
       'Breites S in I, V5, V6',
-      'T-Negativierung in V1–V3 (sekundär)'
+      'T-Negativierung in V1–V3 (sekundär diskordant)',
+      'PR und QT-Zeit oft leicht verlängert'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { rbbb: true }
+    modifiers: {
+      morphPattern: 'rbbb', rbbb: true,
+      tInversion: { V1: -0.5, V2: -0.5, V3: -0.4 }
+    }
   },
 
   // ───── SINUSKNOTEN-PATHOLOGIEN (zusätzlich zu brady/tachy oben) ─────
@@ -1257,11 +1265,15 @@ const PATHOLOGIES = {
     features: [
       'RSB-Morphologie + überdrehter Linkstyp',
       'QRS ≥ 120 ms',
+      'rSR\'-Komplex in V1 typisch',
       'Synkope-Risiko: Übergang in totalen AV-Block möglich',
       'Bei Symptomen Schrittmacher-Evaluation'
     ],
     rhythm: 'regular', pWave: true,
-    modifiers: { rbbb: true }
+    modifiers: {
+      morphPattern: 'rbbb', rbbb: true,
+      tInversion: { V1: -0.5, V2: -0.5 }
+    }
   },
 
   // ───── ISCHÄMIE & INFARKT (zusätzlich) ─────
@@ -1937,14 +1949,56 @@ function generateLead(leadName, durationSec, state) {
     // Torsade: stark variable Achse (Spitzenumkehr)
     if (mod.torsade) polyShift = Math.cos(beatIdx * 0.5);
 
-    // Q
-    addWave(trace, tBeat - qrsW * 0.4, qrsW * 0.2, qFactor * amp * polyShift, durationSec);
-    // R
-    if (!mod.lbbb || (leadName !== 'V1' && leadName !== 'V2')) {
-      addWave(trace, tBeat, qrsW * 0.4, rFactor * amp * polyShift, durationSec);
+    // QRS-Generierung: Schenkelblock-Morphologie oder Standard
+    let qrsHandled = false;
+
+    if (mod.morphPattern === 'rbbb' && !isVes) {
+      if (leadName === 'V1' || leadName === 'V2') {
+        // rSR'-Komplex: kleine initiale r, S (Tal), große R' (zweite Spitze)
+        addWave(trace, tBeat - qrsW * 0.42, qrsW * 0.18, 0.30 * amp, durationSec);  // initiale r
+        addWave(trace, tBeat - qrsW * 0.12, qrsW * 0.16, -0.45 * amp, durationSec); // S (Tal)
+        addWave(trace, tBeat + qrsW * 0.22, qrsW * 0.22, 0.85 * amp, durationSec);  // R' (höher)
+        qrsHandled = true;
+      } else if (['I','V5','V6','aVL'].includes(leadName)) {
+        // RSB lateral: normaler R, dann breites tiefes S
+        addWave(trace, tBeat - qrsW * 0.42, qrsW * 0.18, qFactor * amp, durationSec);
+        addWave(trace, tBeat - qrsW * 0.10, qrsW * 0.20, rFactor * 0.9 * amp, durationSec); // R
+        addWave(trace, tBeat + qrsW * 0.30, qrsW * 0.35, -0.55 * amp, durationSec);          // breites S
+        qrsHandled = true;
+      }
     }
-    // S
-    addWave(trace, tBeat + qrsW * 0.35, qrsW * 0.25, sFactor * amp * polyShift, durationSec);
+
+    if (mod.morphPattern === 'lbbb' && !isVes) {
+      if (leadName === 'V1' || leadName === 'V2') {
+        // LSB: tiefes QS (kein dominantes R)
+        addWave(trace, tBeat - qrsW * 0.28, qrsW * 0.22, -0.35 * amp, durationSec);
+        addWave(trace, tBeat + qrsW * 0.05, qrsW * 0.35, -0.95 * amp, durationSec); // breit-tiefes QS
+        qrsHandled = true;
+      } else if (['I','V5','V6','aVL'].includes(leadName)) {
+        // LSB lateral: breit-plumper R mit Notch (zwei Gipfel)
+        addWave(trace, tBeat - qrsW * 0.25, qrsW * 0.28, 0.85 * Math.abs(rFactor || 1) * amp, durationSec); // erster Gipfel
+        addWave(trace, tBeat - qrsW * 0.02, qrsW * 0.08, -0.10 * amp, durationSec);                          // Notch (Einkerbung)
+        addWave(trace, tBeat + qrsW * 0.18, qrsW * 0.28, 1.05 * Math.abs(rFactor || 1) * amp, durationSec); // zweiter Gipfel
+        qrsHandled = true;
+      } else if (leadName === 'V3' || leadName === 'V4') {
+        // LSB Übergangszone: rS-Pattern
+        addWave(trace, tBeat - qrsW * 0.30, qrsW * 0.22, 0.30 * amp, durationSec);
+        addWave(trace, tBeat + qrsW * 0.10, qrsW * 0.30, -0.75 * amp, durationSec);
+        qrsHandled = true;
+      }
+    }
+
+    if (!qrsHandled) {
+      // Standard-QRS (Q, R, S als getrennte Gauss-Wellen)
+      // Q
+      addWave(trace, tBeat - qrsW * 0.4, qrsW * 0.2, qFactor * amp * polyShift, durationSec);
+      // R
+      if (!mod.lbbb || (leadName !== 'V1' && leadName !== 'V2')) {
+        addWave(trace, tBeat, qrsW * 0.4, rFactor * amp * polyShift, durationSec);
+      }
+      // S
+      addWave(trace, tBeat + qrsW * 0.35, qrsW * 0.25, sFactor * amp * polyShift, durationSec);
+    }
 
     // Osborn-Welle (Hypothermie): positive Auslenkung direkt nach QRS-Ende
     if (mod.osborn) {
@@ -1960,10 +2014,7 @@ function generateLead(leadName, durationSec, state) {
       addWave(trace, tBeat - qrsW * 0.55, qrsW * 0.3, 0.15 * Math.sign(rFactor || 1), durationSec);
     }
 
-    // RSR' bei RSB
-    if (mod.rbbb && leadName === 'V1' && !isVes) {
-      addWave(trace, tBeat + qrsW * 0.5, qrsW * 0.3, 0.4, durationSec);
-    }
+    // (Hinweis: RSR' für RSB wird jetzt über morphPattern: 'rbbb' im QRS-Block behandelt)
 
     // ST-Segment und T-Welle: morphologie-spezifisch oder Standard
     const stStart = tBeat + qrsW * 0.5;
@@ -3034,6 +3085,64 @@ function qmDetectPacingSpikes(trace, sampleRate) {
   return spikes;
 }
 
+// Form-Analyse der ST-T-Strecke: prüft, ob die generierte Wellenform
+// dem erwarteten Muster (Tombstone, Konkav, Sattel) entspricht.
+// Misst: Peak-Position relativ zur ST-T-Strecke, Konkavitäts-Index,
+// Maximal-Amplitude.
+function qmAnalyzeSTMorphology(trace, peaks, sampleRate, expectedShape) {
+  if (peaks.length < 2) return { passed: false, measured: 'kein QRS' };
+  // 2. oder 3. Schlag wählen (nicht Randzonen)
+  const peak = peaks[Math.min(2, peaks.length - 1)];
+  const jPoint = peak + Math.floor(0.04 * sampleRate);
+  const tEnd = peak + Math.floor(0.42 * sampleRate);
+  if (tEnd >= trace.length) return { passed: false, measured: 'Fenster zu kurz' };
+
+  // Punkte der ST-T-Strecke sammeln
+  const points = [];
+  for (let i = jPoint; i < tEnd; i++) points.push(trace[i]);
+  if (points.length < 10) return { passed: false, measured: 'zu wenige Samples' };
+
+  // Maximum finden
+  let maxVal = points[0], maxIdx = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i] > maxVal) { maxVal = points[i]; maxIdx = i; }
+  }
+  const peakPosRel = maxIdx / points.length;
+
+  // Konkavität: mittlere Steigung der ersten gegen zweite Hälfte des Anstiegs
+  const aIdx = Math.max(2, Math.floor(maxIdx * 0.5));
+  const slope1 = (points[aIdx] - points[0]) / aIdx;
+  const slope2 = (points[maxIdx] - points[aIdx]) / Math.max(1, maxIdx - aIdx);
+
+  let measured, passed;
+  if (expectedShape === 'tombstone') {
+    // Tombstone: Peak relativ früh (25–55%), konvex (slope1 ≥ slope2, also Anstieg flacht ab),
+    // hohe Amplitude (≥ 0.3 mV)
+    const peakEarly = peakPosRel >= 0.25 && peakPosRel <= 0.55;
+    const convex = slope1 >= slope2 * 0.6;
+    const tallEnough = maxVal >= 0.3;
+    passed = peakEarly && convex && tallEnough;
+    measured = `Peak@${(peakPosRel * 100).toFixed(0)}% · ${(maxVal * 10).toFixed(1)}mm · ${convex ? 'konvex' : 'konkav'}`;
+  } else if (expectedShape === 'concave') {
+    // Perikarditis konkav: Beginn niedrig, langsamer Anstieg (slope1 < slope2),
+    // niedrigere Amplitude
+    const concave = slope2 > slope1 * 1.2;
+    const modAmp = maxVal >= 0.10 && maxVal <= 0.40;
+    passed = concave && modAmp;
+    measured = `Peak@${(peakPosRel * 100).toFixed(0)}% · ${(maxVal * 10).toFixed(1)}mm · ${concave ? 'konkav' : 'nicht konkav'}`;
+  } else if (expectedShape === 'saddle') {
+    // Inferior Sattel: Peak später (40–65%), moderate Amplitude
+    const peakMid = peakPosRel >= 0.35 && peakPosRel <= 0.65;
+    const modAmp = maxVal >= 0.20;
+    passed = peakMid && modAmp;
+    measured = `Peak@${(peakPosRel * 100).toFixed(0)}% · ${(maxVal * 10).toFixed(1)}mm`;
+  } else {
+    passed = false;
+    measured = 'unbekannte Form';
+  }
+  return { passed, measured };
+}
+
 // ─── Test-Generator: leitet Erwartungen aus Pathologie-Definition ab ───
 
 function qmGenerateTests(pathId, path) {
@@ -3088,6 +3197,23 @@ function qmGenerateTests(pathId, path) {
         expected: mm * 0.1, // mm → mV
         direction: isPos ? 'pos' : 'neg'
       });
+    }
+  }
+  // Form-Analyse: prüft Wellenform-Muster (Tombstone, Konkav, Sattel)
+  if (mod.morphPattern && mod.stElevation) {
+    let expectedShape = null;
+    if (mod.morphPattern === 'tombstone') expectedShape = 'tombstone';
+    else if (mod.morphPattern === 'pericarditis') expectedShape = 'concave';
+    else if (mod.morphPattern === 'inferior_saddle') expectedShape = 'saddle';
+    if (expectedShape) {
+      for (const [lead, mm] of Object.entries(mod.stElevation)) {
+        if (mm >= 2) {
+          tests.push({
+            id: 'morph_' + lead, label: `${expectedShape === 'tombstone' ? 'Tombstone' : expectedShape === 'concave' ? 'Konkave' : 'Sattel'}-Form in ${lead}`,
+            type: 'morphology', lead: lead, expectedShape
+          });
+        }
+      }
     }
   }
   // Brugada: ST-Hebung in V1/V2
@@ -3247,6 +3373,12 @@ function qmEvaluateTest(test, traces, sampleRate) {
         if (amp > maxAmp) maxAmp = amp;
       }
       return { ...test, measured: 'max ' + maxAmp.toFixed(2) + ' mV', passed: maxAmp < 0.5 };
+    }
+    case 'morphology': {
+      const peaks = qmDetectRPeaks(traces[test.lead], sampleRate);
+      const peakRef = peaks.length > 0 ? peaks : peaksII;
+      const result = qmAnalyzeSTMorphology(traces[test.lead], peakRef, sampleRate, test.expectedShape);
+      return { ...test, measured: result.measured, passed: result.passed };
     }
     default:
       return { ...test, measured: 'n.b.', passed: false, note: 'unbekannter Testtyp' };
