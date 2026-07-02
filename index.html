@@ -702,12 +702,13 @@ const VISITENKARTEN = {
     category: 'Vorhofrhythmen',
     subtitle: 'Sägezahnmuster, isthmusabhängig',
     renderType: 'flutter',
-    defaults: { hr: 150, pr: 0, qrs: 90, qt: 320, axis: 60 },
+    conductionRatio: 3,
+    defaults: { hr: 100, pr: 0, qrs: 90, qt: 320, axis: 60 },
     rhythm: { type: 'flutter', pWave: false },
     features: [
       'Sägezahn-Flatterwellen ~300/min',
       'negative F-Wellen in II/III/aVF (counterclockwise)',
-      'meist 2:1-Überleitung → ~150/min',
+      '3:1-Überleitung → regelmäßig ~100/min',
       'keine isoelektrische Linie zwischen F-Wellen'
     ],
     validation: { hr_range: [60, 170], qrs_max: 120, type: 'flutter', flutterRate: [250, 350] }
@@ -1336,13 +1337,27 @@ function genVfib(leadName, durationSec) {
 function genAfib(leadName, durationSec, card) {
   const n = Math.floor(durationSec * SAMPLE_RATE);
   const trace = new Float32Array(n);
-  let phase = 0, freq = 8;
-  const fAmp = (leadName === 'V1') ? 0.08 : 0.045;
+  // Feine, CHAOTISCHE Flimmerwellen (f-Wellen): Summe mehrerer inkommensurabler Frequenzen
+  // (~330–600/min) + langsame Amplitudenmodulation + Rauschen → unruhige Grundlinie ohne
+  // erkennbare Periodik (Abgrenzung zum regelmäßigen Sägezahn des Vorhofflatterns).
+  // Amplitude klinisch ableitungsabhängig: in V1 am gröbsten, in den übrigen fein.
+  const comps = [];
+  for (let k = 0; k < 4; k++) comps.push({ f: 5.5 + rand() * 4.5, ph: rand() * 6.283, a: 0.5 + rand() * 0.6 });
+  const raw = new Float32Array(n);
+  let amMod = 1, mx = 1e-6;
   for (let i = 0; i < n; i++) {
-    freq += (rand() - 0.5) * 0.6; freq = Math.max(5, Math.min(11, freq));
-    phase += 2 * Math.PI * freq / SAMPLE_RATE;
-    trace[i] = Math.sin(phase) * fAmp;
+    const t = i / SAMPLE_RATE;
+    amMod += (rand() - 0.5) * 0.18; amMod = Math.max(0.35, Math.min(1.6, amMod));
+    let v = 0;
+    for (const c of comps) v += c.a * Math.sin(2 * Math.PI * c.f * t + c.ph);
+    v = (v + (rand() - 0.5) * 0.7) * amMod;
+    raw[i] = v; if (Math.abs(v) > mx) mx = Math.abs(v);
   }
+  // Zielamplitude je Ableitung; in den übrigen Ableitungen bewusst unter der P-Wellen-
+  // Detektionsschwelle (~0,06 mV), sodass die Rhythmusmessung korrekt „keine P-Wellen" erkennt.
+  const target = (leadName === 'V1') ? 0.11 : (leadName === 'V2') ? 0.07 : 0.048;
+  const scale = target / mx;
+  for (let i = 0; i < n; i++) trace[i] = raw[i] * scale;
   const f = leadFactors(leadName, state.axis);
   const qtSec = state.qt / 1000, qrsW = state.qrs / 1000;
   const meanRr = 60 / state.hr;
@@ -1376,9 +1391,12 @@ function genFlutter(leadName, durationSec, card) {
     trace[i] += pol * 0.16 * (saw - 0.45);
   }
   const qtSec = state.qt / 1000, qrsW = state.qrs / 1000;
-  const vRr = 60 / state.hr;
+  // Kammerfrequenz ist an die Vorhoffrequenz gekoppelt: feste Überleitung (z. B. 3:1)
+  // → zwischen zwei regelmäßigen QRS liegen exakt `ratio` Flatterwellen.
+  const ratio = card.conductionRatio || 3;
+  const vRr = fRr * ratio; // 300/min ÷ 3 = 100/min (R-R 600 ms)
   const qrsTimes = [];
-  for (let t = 0.4; t < durationSec; t += vRr) {
+  for (let t = fRr * (ratio - 0.5); t < durationSec; t += vRr) { // Offset: QRS nach der 3. F-Welle
     qrsTimes.push(t);
     addQrsT(trace, t, qrsW, qtSec, f);
   }
