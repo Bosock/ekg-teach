@@ -3,7 +3,7 @@ Haftungsausschluss und Nutzungsbedingungen
 
 EKG-Teach – Lehrwerkzeug zur Visualisierung synthetischer EKG-Befunde
 
-Stand: Version 1.0
+Stand: Version 0.3 (30.10.2026) · Änderungen siehe docs/aenderungsprotokoll.md
 
 
 ⚠ Wichtiger Hinweis zu Beginn
@@ -69,7 +69,7 @@ Mit der Nutzung bestätigt jeder Anwender, dass die Software ausschließlich in 
 
 8. Datenschutz
 
-Die Software verarbeitet keine personenbezogenen Daten und führt keine Datenerhebung durch. Alle Berechnungen und Darstellungen erfolgen lokal im Browser des Anwenders. Es werden keine Daten an externe Server übertragen. Die Akzeptanz dieses Haftungsausschlusses wird ausschließlich lokal im Browser-Speicher (localStorage) abgelegt.
+Die Software verarbeitet keine personenbezogenen Daten und führt keine Datenerhebung durch. Alle Berechnungen und Darstellungen erfolgen lokal im Browser des Anwenders. Es werden keine Daten an externe Server übertragen. Die Software speichert keine Daten, auch nicht im Browser-Speicher.
 
 9. Urheber- und Nutzungsrechte
 

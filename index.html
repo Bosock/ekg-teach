@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EKG-Teach v0.2 – Lehrwerkzeug HKL Kassel</title>
+<title>EKG-Teach v0.3 – Lehrwerkzeug HKL Kassel</title>
 <style>
   :root {
     --paper: #fdf6f0;
@@ -295,7 +295,7 @@
 <div class="app">
   <aside class="panel">
     <h1>EKG-Teach</h1>
-    <div class="subtitle">v0.2 · HKL Kassel · Visitenkarten-Engine</div>
+    <div class="subtitle">v0.3 · HKL Kassel · Visitenkarten-Engine</div>
     <button class="qm-badge" id="qmBadge" title="QM-Selbsttest öffnen"><span class="dot"></span>QM-Selbsttest<span id="qmBadgeState">…</span></button>
 
     <div class="rubrik-tabs">
@@ -350,25 +350,32 @@
           <input type="range" id="qt" min="250" max="600" value="380">
           <div class="val" id="qt-val">380</div>
         </div>
-        <div class="features" style="margin-top:8px;">QTc nach Bazett: <span id="qtc-val" style="font-family:monospace;font-weight:600;">–</span></div>
+        <div class="features" style="margin-top:8px;">QTc Bazett: <span id="qtc-val" style="font-family:monospace;font-weight:600;">–</span><br>QTc Fridericia: <span id="qtcf-val" style="font-family:monospace;font-weight:600;">–</span></div>
+        <label style="margin-top:6px">QTc-Grenzwerte (AHA/ACCF/HRS 2009) für</label>
+        <select id="qtcSex">
+          <option value="m">Männer (verlängert ≥ 450 ms)</option>
+          <option value="w">Frauen (verlängert ≥ 460 ms)</option>
+        </select>
+        <div class="features" style="margin-top:4px;font-size:10.5px;">Bazett überkorrigiert bei hoher Herzfrequenz (QTc zu lang); Fridericia weicht weniger ab.</div>
         <label class="check-row" style="margin-top:6px;"><input type="checkbox" id="qtCoupled" checked> QT frequenzgekoppelt (Bazett: verkürzt sich bei Tachykardie)</label>
       </div>
 
       <div class="section s-axis">
         <h2>Herzachse / Lagetyp</h2>
         <div class="axis-grid">
-          <button class="axis-btn" data-axis="-60">Überdr. Links</button>
-          <button class="axis-btn" data-axis="0">Linkstyp</button>
-          <button class="axis-btn active" data-axis="60">Indifferenz</button>
-          <button class="axis-btn" data-axis="80">Steiltyp</button>
-          <button class="axis-btn" data-axis="110">Rechtstyp</button>
-          <button class="axis-btn" data-axis="150">Überdr. Rechts</button>
+          <button class="axis-btn" data-axis="-60" data-lt="uelt">Überdr. Links</button>
+          <button class="axis-btn" data-axis="0" data-lt="lt">Linkstyp</button>
+          <button class="axis-btn active" data-axis="45" data-lt="it">Indifferenz</button>
+          <button class="axis-btn" data-axis="75" data-lt="st">Steiltyp</button>
+          <button class="axis-btn" data-axis="105" data-lt="rt">Rechtstyp</button>
+          <button class="axis-btn" data-axis="150" data-lt="uert">Überdr. Rechts</button>
         </div>
         <label style="margin-top:8px">Exakter Winkel (°)</label>
         <div class="slider-row">
-          <input type="range" id="axis" min="-90" max="180" value="60">
-          <div class="val" id="axis-val">+60°</div>
+          <input type="range" id="axis" min="-180" max="180" value="50">
+          <div class="val" id="axis-val">+50°</div>
         </div>
+        <div class="features" style="margin-top:4px;">Lagetyp: <span id="lagetyp-val" style="font-weight:600;">–</span></div>
       </div>
     </div>
 
@@ -542,7 +549,7 @@ const VISITENKARTEN = {
     name: 'Sinusrhythmus',
     category: 'Sinus-Familie',
     subtitle: 'Normalbefund',
-    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 380, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     features: [
       'Frequenz 60–100/min, regelmäßig',
@@ -562,13 +569,13 @@ const VISITENKARTEN = {
     name: 'Sinusbradykardie',
     category: 'Sinus-Familie',
     subtitle: 'Frequenz < 60/min',
-    defaults: { hr: 45, pr: 180, qrs: 90, qt: 440, axis: 60 },
+    defaults: { hr: 45, pr: 180, qrs: 90, qt: 460, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     features: [
       'Frequenz < 60/min, regelmäßig (Sinus-Charakter)',
       'P-Welle positiv in I, II, aVF',
       'PR oft am oberen Normbereich',
-      'Bei Symptomatik: Atropin als Erstlinie'
+      'Bei Bradykardie mit Warnzeichen: Atropin 500 µg i.v., ggf. wiederholen bis 3 mg (ERC 2025)'
     ],
     validation: {
       hr_range: [30, 59],
@@ -602,7 +609,7 @@ const VISITENKARTEN = {
     name: 'Respiratorische Sinusarrhythmie',
     category: 'Sinus-Familie',
     subtitle: 'atmungsabhängige Frequenzschwankung',
-    defaults: { hr: 70, pr: 160, qrs: 90, qt: 390, axis: 60 },
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 390, axis: 50 },
     rhythm: { type: 'respiratory_irregular', pWave: true, pBeforeQrs: true },
     features: [
       'Frequenzschwankung > 10 % atmungssynchron',
@@ -625,7 +632,7 @@ const VISITENKARTEN = {
     category: 'AV-Blöcke',
     subtitle: 'verlängerte Überleitung',
     renderType: 'standard',
-    defaults: { hr: 70, pr: 280, qrs: 90, qt: 380, axis: 60 },
+    defaults: { hr: 70, pr: 280, qrs: 90, qt: 380, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     features: [
       'PR > 200 ms, konstant verlängert',
@@ -640,22 +647,22 @@ const VISITENKARTEN = {
     category: 'AV-Blöcke',
     subtitle: 'periodischer Ausfall mit PR-Zunahme',
     renderType: 'wenckebach',
-    defaults: { hr: 60, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    defaults: { hr: 60, pr: 160, qrs: 90, qt: 400, axis: 50 },
     rhythm: { type: 'wenckebach', pWave: true },
     features: [
-      'PR nimmt von Schlag zu Schlag zu',
-      'bis eine Kammeraktion ausfällt (Lücke)',
-      'RR verkürzt sich vor dem Ausfall (Paradox)',
+      'PR nimmt von Schlag zu Schlag zu, bis eine P-Welle nicht übergeleitet wird',
+      'größter PR-Zuwachs zwischen 1. und 2. Schlag, danach kleinere Zuwächse',
+      'dadurch verkürzt sich RR vor dem Ausfall; kürzeste PR direkt nach der Lücke',
       'gruppierte Schläge'
     ],
-    validation: { qrs_max: 120, p_positive_leads: ['II', 'aVF'], type: 'wenckebach', dropped: true }
+    validation: { qrs_max: 120, p_positive_leads: ['II', 'aVF'], type: 'wenckebach', dropped: true, morph: ['rrShortening', 'prIncreasing'] }
   },
   av_block_2_mobitz2: {
     name: 'AV-Block II° Mobitz II',
     category: 'AV-Blöcke',
     subtitle: 'plötzlicher Ausfall, PR konstant',
     renderType: 'mobitz2',
-    defaults: { hr: 60, pr: 180, qrs: 110, qt: 400, axis: 60 },
+    defaults: { hr: 60, pr: 180, qrs: 110, qt: 400, axis: 50 },
     rhythm: { type: 'mobitz2', pWave: true },
     features: [
       'PR konstant (kein Anstieg vor Ausfall)',
@@ -663,7 +670,7 @@ const VISITENKARTEN = {
       'oft breiter QRS (infrahisär)',
       'Schrittmacher-Indikation'
     ],
-    validation: { qrs_max: 140, p_positive_leads: ['II', 'aVF'], type: 'mobitz2', dropped: true }
+    validation: { qrs_max: 140, p_positive_leads: ['II', 'aVF'], type: 'mobitz2', dropped: true, morph: ['prConstant'] }
   },
   av_block_3: {
     name: 'AV-Block III° (total)',
@@ -671,7 +678,7 @@ const VISITENKARTEN = {
     subtitle: 'komplette AV-Dissoziation',
     renderType: 'av_block_3',
     atrialRate: 80,
-    defaults: { hr: 38, pr: 160, qrs: 140, qt: 460, axis: 60 },
+    defaults: { hr: 38, pr: 160, qrs: 140, qt: 460, axis: 50 },
     rhythm: { type: 'av_dissociation', pWave: true },
     features: [
       'komplette AV-Dissoziation',
@@ -687,7 +694,7 @@ const VISITENKARTEN = {
     category: 'Vorhofrhythmen',
     subtitle: 'absolute Arrhythmie',
     renderType: 'afib',
-    defaults: { hr: 130, pr: 0, qrs: 90, qt: 320, axis: 60 },
+    defaults: { hr: 130, pr: 0, qrs: 90, qt: 320, axis: 50 },
     rhythm: { type: 'irregular', pWave: false },
     features: [
       'keine abgrenzbaren P-Wellen',
@@ -698,16 +705,16 @@ const VISITENKARTEN = {
     validation: { hr_range: [60, 180], qrs_max: 120, type: 'afib', noP: true, irregular: true }
   },
   atrial_flutter_typical: {
-    name: 'Vorhofflattern (typisch)',
+    name: 'Vorhofflattern (typisch, gegen den Uhrzeigersinn)',
     category: 'Vorhofrhythmen',
     subtitle: 'Sägezahnmuster, isthmusabhängig',
     renderType: 'flutter',
     conductionRatio: 3,
-    defaults: { hr: 100, pr: 0, qrs: 90, qt: 320, axis: 60 },
+    defaults: { hr: 100, pr: 0, qrs: 90, qt: 320, axis: 50 },
     rhythm: { type: 'flutter', pWave: false },
     features: [
       'Sägezahn-Flatterwellen ~300/min',
-      'negative F-Wellen in II/III/aVF (counterclockwise)',
+      'negative F-Wellen in II/III/aVF, positive in V1 (gegen den Uhrzeigersinn)',
       '3:1-Überleitung → regelmäßig ~100/min',
       'keine isoelektrische Linie zwischen F-Wellen'
     ],
@@ -716,22 +723,31 @@ const VISITENKARTEN = {
 
   vt_monomorphic: {
     name: 'Ventrikuläre Tachykardie (monomorph)',
-    category: 'Reanimationsrhythmen',
-    subtitle: 'breit, regelmäßig, schnell',
+    category: 'Ventrikuläre Rhythmen / Herzstillstand',
+    subtitle: 'breit, regelmäßig, schnell · mit oder ohne Puls',
     renderType: 'vt',
-    defaults: { hr: 180, pr: 0, qrs: 160, qt: 300, axis: -90 },
+    dissocAtrialRate: 75,
+    defaults: { hr: 180, pr: 0, qrs: 170, qt: 300, axis: -150 },
     rhythm: { type: 'vt', pWave: false },
+    // Morphologie: Nordwest-Achse, negative Konkordanz V1–V6 (keine RS-Komplexe), diskordante T-Wellen
+    morph: {
+      limb: [{ t: 0.36, w: 0.55, mag: 0.75, rel: 0 }, { t: 0.66, w: 0.55, mag: 0.65, rel: 10 }],
+      prec: { V1: [{ t: 0.48, w: 0.85, a: -1.0 }], V2: [{ t: 0.48, w: 0.85, a: -1.35 }], V3: [{ t: 0.5, w: 0.85, a: -1.45 }],
+              V4: [{ t: 0.5, w: 0.85, a: -1.25 }], V5: [{ t: 0.52, w: 0.85, a: -1.0 }], V6: [{ t: 0.52, w: 0.85, a: -0.8 }] },
+      tDisc: 0.32
+    },
     features: [
-      'breite QRS-Komplexe (> 120 ms)',
-      'regelmäßig, Frequenz 100–250/min',
-      'monomorph (gleichförmige QRS)',
-      'AV-Dissoziation möglich'
+      'breite QRS-Komplexe (oft > 160 ms), monomorph, regelmäßig > 100/min',
+      'Nordwest-Achse: negativ in I und aVF, positiv in aVR',
+      'negative Konkordanz V1–V6 (keine RS-Komplexe) spricht für VT',
+      'AV-Dissoziation: P-Wellen unabhängig vom QRS, oft schwer erkennbar',
+      'mit Puls (Tachykardie-Algorithmus) oder pulslos (defibrillierbar)'
     ],
-    validation: { hr_range: [100, 250], qrs_min: 120, type: 'vt', wide: true }
+    validation: { hr_range: [100, 250], qrs_min: 120, type: 'vt', wide: true, morph: ['negConcordance', 'northwestAxis'] }
   },
   ventricular_fibrillation: {
     name: 'Kammerflimmern',
-    category: 'Reanimationsrhythmen',
+    category: 'Ventrikuläre Rhythmen / Herzstillstand',
     subtitle: 'chaotisch · sofort defibrillieren',
     renderType: 'vfib',
     defaults: { hr: 0, pr: 0, qrs: 0, qt: 0, axis: 0 },
@@ -746,7 +762,7 @@ const VISITENKARTEN = {
   },
   asystole: {
     name: 'Asystolie',
-    category: 'Reanimationsrhythmen',
+    category: 'Ventrikuläre Rhythmen / Herzstillstand',
     subtitle: 'Nulllinie',
     renderType: 'asystole',
     defaults: { hr: 0, pr: 0, qrs: 0, qt: 0, axis: 0 },
@@ -765,7 +781,7 @@ const VISITENKARTEN = {
     category: 'STEMI / Ischämie',
     subtitle: 'LAD-Verschluss · ST-Hebung V1–V4',
     renderType: 'standard',
-    defaults: { hr: 80, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    defaults: { hr: 80, pr: 160, qrs: 90, qt: 380, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     st_per_lead: { V1: 0.25, V2: 0.40, V3: 0.40, V4: 0.30, II: -0.08, III: -0.10, aVF: -0.09 },
     st_shape: 'convex',
@@ -816,7 +832,7 @@ const VISITENKARTEN = {
     category: 'STEMI / Ischämie',
     subtitle: 'kritische LAD-Stenose · tiefe T-Negativierung V2/V3',
     renderType: 'standard',
-    defaults: { hr: 75, pr: 160, qrs: 90, qt: 420, axis: 60 },
+    defaults: { hr: 75, pr: 160, qrs: 90, qt: 420, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     t_per_lead: { V2: -0.35, V3: -0.38, V4: -0.20 },
     features: [
@@ -833,18 +849,27 @@ const VISITENKARTEN = {
     category: 'Schenkelblöcke',
     subtitle: 'rSR\' in V1 · QRS ≥ 120 ms',
     renderType: 'standard',
-    defaults: { hr: 75, pr: 160, qrs: 140, qt: 420, axis: 60 },
+    defaults: { hr: 75, pr: 160, qrs: 140, qt: 420, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
-    qrs_per_lead: { V1: { rprime: { t: 0.82, amp: 0.9 } } },
+    // Morphologie: normale initiale Erregung, späte rechtsgerichtete Kräfte → breite S in I/aVL/V5/V6, R' in V1–V3, R terminal in aVR
+    morph: {
+      limb: [{ t: 0.10, w: 0.16, mag: 0.10, rel: 180 }, { t: 0.36, w: 0.32, mag: 1.0, rel: 0 }, { t: 0.78, w: 0.38, mag: 0.45, ang: -160 }],
+      prec: { V1: [{ t: 0.18, w: 0.20, a: 0.25 }, { t: 0.42, w: 0.22, a: -0.45 }, { t: 0.78, w: 0.36, a: 0.95 }],
+              V2: [{ t: 0.18, w: 0.20, a: 0.35 }, { t: 0.42, w: 0.22, a: -0.65 }, { t: 0.78, w: 0.36, a: 0.75 }],
+              V3: [{ t: 0.20, w: 0.24, a: 0.60 }, { t: 0.45, w: 0.22, a: -0.50 }, { t: 0.78, w: 0.35, a: 0.35 }],
+              V4: [{ t: 0.10, w: 0.14, a: -0.05 }, { t: 0.35, w: 0.30, a: 1.10 }, { t: 0.76, w: 0.38, a: -0.35 }],
+              V5: [{ t: 0.10, w: 0.14, a: -0.08 }, { t: 0.35, w: 0.30, a: 1.20 }, { t: 0.76, w: 0.38, a: -0.40 }],
+              V6: [{ t: 0.10, w: 0.14, a: -0.08 }, { t: 0.35, w: 0.30, a: 1.00 }, { t: 0.76, w: 0.38, a: -0.40 }] }
+    },
     st_per_lead: { V1: -0.10, V2: -0.08 },
     t_per_lead: { V1: -0.15, V2: -0.12 },
     features: [
       'QRS ≥ 120 ms',
-      'rSR\'-Muster (M-Form) in V1',
-      'breite, plumpe S-Zacke in I und V6',
+      'rSR\'-Muster (M-Form) in V1–V3',
+      'breite, plumpe S-Zacke in I, aVL, V5, V6',
       'diskordante ST-Senkung / T-Negativierung in V1–V3'
     ],
-    validation: { hr_range: [50, 110], type: 'bundle', qrs_min: 120, discordant_st_leads: ['V1', 'V2'], discordant_dir: 'down' }
+    validation: { hr_range: [50, 110], type: 'bundle', qrs_min: 120, discordant_st_leads: ['V1', 'V2'], discordant_dir: 'down', morph: ['rPrimeV1', 'terminalSLateral'] }
   },
   lbbb: {
     name: 'Linksschenkelblock (LSB, komplett)',
@@ -853,15 +878,25 @@ const VISITENKARTEN = {
     renderType: 'standard',
     defaults: { hr: 75, pr: 160, qrs: 150, qt: 440, axis: -20 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
+    // Morphologie: Septum von rechts nach links → keine septalen q lateral; breites, in der QRS-Mitte gekerbtes R in I/aVL/V5/V6; rS/QS in V1–V3
+    morph: {
+      limb: [{ t: 0.35, w: 0.45, mag: 0.75, rel: -5 }, { t: 0.65, w: 0.45, mag: 0.85, rel: 5 }],
+      prec: { V1: [{ t: 0.12, w: 0.15, a: 0.12 }, { t: 0.55, w: 0.75, a: -1.6 }],
+              V2: [{ t: 0.12, w: 0.15, a: 0.15 }, { t: 0.55, w: 0.75, a: -2.0 }],
+              V3: [{ t: 0.15, w: 0.20, a: 0.25 }, { t: 0.55, w: 0.70, a: -1.5 }],
+              V4: [{ t: 0.35, w: 0.45, a: 0.50 }, { t: 0.72, w: 0.45, a: -0.6 }],
+              V5: [{ t: 0.35, w: 0.45, a: 0.90 }, { t: 0.65, w: 0.45, a: 1.00 }],
+              V6: [{ t: 0.35, w: 0.45, a: 0.85 }, { t: 0.65, w: 0.45, a: 0.95 }] }
+    },
     st_per_lead: { V1: 0.15, V2: 0.20, V3: 0.12, I: -0.10, V5: -0.12, V6: -0.12 },
     t_per_lead: { V5: -0.20, V6: -0.18, I: -0.12 },
     features: [
-      'QRS ≥ 120 ms',
-      'breite, träge monophasische R in I, V5, V6 (keine Q)',
+      'QRS ≥ 120 ms (strenge Kriterien: ≥ 140 ms Männer, ≥ 130 ms Frauen)',
+      'breites, monophasisches R in I, aVL, V5, V6 ohne q, oft gekerbt in der QRS-Mitte',
       'QS oder rS in V1',
       'diskordante ST-T (Hebung V1–V3, Senkung I/V5/V6)'
     ],
-    validation: { hr_range: [50, 110], type: 'bundle', qrs_min: 120, discordant_st_leads: ['V1', 'V2'], discordant_dir: 'up' }
+    validation: { hr_range: [50, 110], type: 'bundle', qrs_min: 120, discordant_st_leads: ['V1', 'V2'], discordant_dir: 'up', morph: ['noLateralQ'] }
   },
   lahb: {
     name: 'Linksanteriorer Hemiblock (LAHB)',
@@ -881,12 +916,12 @@ const VISITENKARTEN = {
   lphb: {
     name: 'Linksposteriorer Hemiblock (LPHB)',
     category: 'Schenkelblöcke',
-    subtitle: 'überdrehter Rechtstyp · Ausschlussdiagnose',
+    subtitle: 'Achse +90° bis +180° · Ausschlussdiagnose',
     renderType: 'standard',
     defaults: { hr: 75, pr: 160, qrs: 105, qt: 390, axis: 110 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     features: [
-      'überdrehter Rechtstyp (+90° bis +180°)',
+      'Achse +90° bis +180° (Rechtstyp bis überdrehter Rechtstyp)',
       'rS in I/aVL, qR in II/III/aVF',
       'QRS < 120 ms',
       'Ausschlussdiagnose (RVH, lateraler Infarkt ausschließen)'
@@ -895,19 +930,34 @@ const VISITENKARTEN = {
   },
 
   sa_block_2: {
-    name: 'SA-Block II° / Sinusarrest',
+    name: 'SA-Block II° (Typ II)',
     category: 'Sinus-Familie',
-    subtitle: 'Pause durch Ausfall von P UND QRS',
+    subtitle: 'Pause = genau 2 × PP-Intervall',
     renderType: 'sa_block',
-    defaults: { hr: 70, pr: 160, qrs: 90, qt: 380, axis: 60 },
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 380, axis: 50 },
     rhythm: { type: 'sa_block', pWave: true },
     features: [
-      'periodischer Ausfall eines kompletten Schlags (P UND QRS)',
-      'Pause als Vielfaches des PP-Intervalls (Typ II)',
+      'Ausfall eines kompletten Schlags (P UND QRS)',
+      'Pause genau ein Vielfaches (hier 2 ×) des vorangehenden PP-Intervalls',
       'davor und danach regelrechter Sinusrhythmus',
       'Abgrenzung zum AV-Block: dort fehlt nur QRS, P bleibt'
     ],
-    validation: { qrs_max: 120, p_positive_leads: ['II', 'aVF'], type: 'sa_block', pause: true }
+    validation: { qrs_max: 120, p_positive_leads: ['II', 'aVF'], type: 'sa_block', pause: true, morph: ['pauseMultiple'] }
+  },
+  sinus_arrest: {
+    name: 'Sinusarrest',
+    category: 'Sinus-Familie',
+    subtitle: 'Pause ohne festen Bezug zum PP-Intervall',
+    renderType: 'sinus_arrest',
+    defaults: { hr: 70, pr: 160, qrs: 90, qt: 380, axis: 50 },
+    rhythm: { type: 'sa_block', pWave: true },
+    features: [
+      'Sinusknoten bildet vorübergehend keine Impulse: Pause ohne P und QRS',
+      'Pausendauer steht in keinem festen Verhältnis zum PP-Intervall (kein ganzzahliges Vielfaches)',
+      'nach der Pause setzt der Sinusrhythmus neu ein',
+      'Abgrenzung zum SA-Block II°: dort ist die Pause genau ein Vielfaches des PP-Intervalls'
+    ],
+    validation: { qrs_max: 120, p_positive_leads: ['II', 'aVF'], type: 'sa_block', pause: true, morph: ['pauseNotMultiple'] }
   },
 
   focal_atrial_tachycardia: {
@@ -916,7 +966,7 @@ const VISITENKARTEN = {
     subtitle: 'regelmäßig · abnorme P-Achse · 1:1',
     renderType: 'standard',
     p_axis: 100,
-    defaults: { hr: 170, pr: 140, qrs: 90, qt: 320, axis: 60 },
+    defaults: { hr: 170, pr: 140, qrs: 90, qt: 320, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     features: [
       'regelmäßige Schmalkomplextachykardie 150–250/min',
@@ -931,29 +981,29 @@ const VISITENKARTEN = {
     category: 'Vorhofrhythmen',
     subtitle: '≥ 3 P-Morphologien · unregelmäßig',
     renderType: 'mat',
-    defaults: { hr: 130, pr: 150, qrs: 90, qt: 320, axis: 60 },
+    defaults: { hr: 130, pr: 150, qrs: 90, qt: 320, axis: 50 },
     rhythm: { type: 'irregular', pWave: true },
     features: [
-      'mindestens 3 verschiedene P-Wellen-Morphologien',
-      'unregelmäßige PP-, PR- und RR-Intervalle',
-      'Frequenz > 100/min',
-      'typisch bei COPD / schwerer Lungenerkrankung'
+      'mindestens 3 verschiedene P-Wellen-Morphologien in derselben Ableitung',
+      'unregelmäßige PP-, PR- und RR-Intervalle, isoelektrische Linie zwischen den P-Wellen',
+      'Frequenz > 100/min (meist 100–150/min)',
+      'typisch bei schwerer COPD oder Herzinsuffizienz'
     ],
     validation: { hr_range: [100, 180], qrs_max: 120, type: 'mat', irregular: true }
   },
-  atrial_flutter_atypical: {
-    name: 'Vorhofflattern (atypisch, clockwise)',
+  atrial_flutter_cw: {
+    name: 'Vorhofflattern (typisch, im Uhrzeigersinn)',
     category: 'Vorhofrhythmen',
-    subtitle: 'positive F-Wellen inferior',
+    subtitle: 'isthmusabhängig · positive F-Wellen inferior',
     renderType: 'flutter',
     flutterPolarity: 1,
     atrialFlutterRate: 280,
-    defaults: { hr: 140, pr: 0, qrs: 90, qt: 320, axis: 60 },
+    defaults: { hr: 140, pr: 0, qrs: 90, qt: 320, axis: 50 },
     rhythm: { type: 'flutter', pWave: false },
     features: [
-      'Sägezahn-/Flatterwellen, oft ~250–350/min',
-      'positive F-Wellen in II/III/aVF (Uhrzeigersinn)',
-      'nicht isthmusabhängig (atypischer Reentry-Kreis)',
+      'Flatterwellen um 300/min (Bereich etwa 200–400/min)',
+      'positive F-Wellen in II/III/aVF, breite negative F-Wellen in V1',
+      'derselbe isthmusabhängige Kreis wie beim typischen Flattern, nur umgekehrte Richtung (seltenere Variante)',
       'variable Überleitung möglich'
     ],
     validation: { hr_range: [60, 180], qrs_max: 120, type: 'flutter', flutterRate: [240, 360] }
@@ -961,7 +1011,7 @@ const VISITENKARTEN = {
 
   torsade_de_pointes: {
     name: 'Torsade de pointes',
-    category: 'Reanimationsrhythmen',
+    category: 'Ventrikuläre Rhythmen / Herzstillstand',
     subtitle: 'polymorphe VT · um die Grundlinie verdreht',
     renderType: 'torsade',
     defaults: { hr: 220, pr: 0, qrs: 160, qt: 300, axis: 0 },
@@ -981,7 +1031,7 @@ const VISITENKARTEN = {
     subtitle: 'schmal · regelmäßig · P verborgen',
     renderType: 'standard',
     qrs_per_lead: { V1: { rprime: { t: 0.95, amp: 0.25 } } },
-    defaults: { hr: 180, pr: 80, qrs: 90, qt: 280, axis: 60 },
+    defaults: { hr: 180, pr: 80, qrs: 90, qt: 280, axis: 50 },
     rhythm: { type: 'regular', pWave: false },
     features: [
       'regelmäßige Schmalkomplextachykardie 150–220/min',
@@ -996,7 +1046,7 @@ const VISITENKARTEN = {
     category: 'Supraventrikuläre Tachykardien',
     subtitle: 'schmal · retrograde P nach QRS',
     renderType: 'svt_retro',
-    defaults: { hr: 190, pr: 100, qrs: 90, qt: 280, axis: 60 },
+    defaults: { hr: 190, pr: 100, qrs: 90, qt: 280, axis: 50 },
     rhythm: { type: 'regular', pWave: false },
     features: [
       'regelmäßige Schmalkomplextachykardie',
@@ -1027,7 +1077,7 @@ const VISITENKARTEN = {
     subtitle: 'kurze PQ · Delta-Welle · Ruhe-EKG',
     renderType: 'standard',
     delta: 0.22,
-    defaults: { hr: 75, pr: 100, qrs: 125, qt: 380, axis: 60 },
+    defaults: { hr: 75, pr: 100, qrs: 125, qt: 380, axis: 50 },
     rhythm: { type: 'regular', pWave: true, pBeforeQrs: true },
     features: [
       'verkürzte PQ-Zeit (< 120 ms)',
@@ -1051,7 +1101,7 @@ const state = {
   rubrik: 'pathology',
   pathologyId: 'sinus_normal',
   medicationId: 'med_atropine',
-  hr: 75, pr: 160, qrs: 90, qt: 380, axis: 60,
+  hr: 75, pr: 160, qrs: 90, qt: 380, axis: 50,
   layout: 'clinical',
   speed: 50, gain: 10,
   qtCoupled: true,
@@ -1174,10 +1224,16 @@ function addQrsT(trace, qStart, qrsSec, qtSec, f, opts) {
   const rC = qStart + qrsSec * 0.40;
   const sC = qStart + qrsSec * 0.72;
   const tC = qStart + qtSec * 0.60;
-  const qAmp = f.isLimb ? (-0.08 * Math.sign(f.rFactor || 1)) : (f.qFactor * 1.0);
-  addGauss(trace, qC, qrsSec * 0.26, qAmp);
-  addGauss(trace, rC, qrsSec * 0.40, 1.0 * f.rFactor);
-  addGauss(trace, sC, qrsSec * 0.34, f.sFactor * 0.75);
+  let lobeNet = 0;
+  if (opts.lobes) {
+    // Kartenspezifische Morphologie (Schenkelblöcke, VT): ersetzt die Standard-Q/R/S-Form
+    for (const l of opts.lobes) { addGauss(trace, qStart + qrsSec * l.t, qrsSec * l.w, l.a); lobeNet += l.a * l.w; }
+  } else {
+    const qAmp = f.isLimb ? (-0.08 * Math.sign(f.rFactor || 1)) : (f.qFactor * 1.0);
+    addGauss(trace, qC, qrsSec * 0.26, qAmp);
+    addGauss(trace, rC, qrsSec * 0.40, 1.0 * f.rFactor);
+    addGauss(trace, sC, qrsSec * 0.34, f.sFactor * 0.75);
+  }
   // R' (zweite positive Auslenkung), z.B. rSR' in V1 bei Rechtsschenkelblock
   if (opts.rprime) {
     addGauss(trace, qStart + qrsSec * opts.rprime.t, qrsSec * 0.22, opts.rprime.amp);
@@ -1190,8 +1246,20 @@ function addQrsT(trace, qStart, qrsSec, qtSec, f, opts) {
   // ST-Strecke (ableitungsspezifisch, mit Form: flach / konvex [STEMI] / konkav [Perikarditis])
   addST(trace, qStart, qrsSec, qtSec, opts.st || 0, opts.stShape);
   // T-Welle: physiologisch asymmetrisch – langsamer Anstieg, rascher Abfall (ggf. für STEMI/Wellens überschrieben)
-  const tAmp = (opts.tAmp !== undefined) ? opts.tAmp : 0.30 * f.tFactor;
+  let tAmp = (opts.tAmp !== undefined) ? opts.tAmp : 0.30 * f.tFactor;
+  // Sekundäre Repolarisationsstörung: T-Welle diskordant zur Netto-QRS-Fläche (z. B. ventrikulärer Ursprung)
+  if (opts.lobes && opts.tDisc && opts.tAmp === undefined) tAmp = -opts.tDisc * Math.max(-1, Math.min(1, lobeNet / 0.5));
   addAsymGauss(trace, tC, qtSec * 0.42, qtSec * 0.30, tAmp);
+}
+
+// Morphologie-Lappen einer Ableitung aus card.morph: Extremitäten als Vektorprojektion (Einthoven bleibt erhalten), Brustwand als Tabelle
+function morphLobes(card, leadName, axisDeg) {
+  const M = card.morph; if (!M) return null;
+  if (LIMB_LEADS.includes(leadName)) {
+    const la = LIMB_ANGLES[leadName];
+    return M.limb.map(l => ({ t: l.t, w: l.w, a: projectVector(l.mag, (l.ang !== undefined) ? l.ang : axisDeg + (l.rel || 0), la) }));
+  }
+  return (M.prec && M.prec[leadName]) ? M.prec[leadName] : null;
 }
 
 /**
@@ -1230,7 +1298,7 @@ function buildBeatPlan(card, durationSec) {
     return { pEvents, qrsEvents, retroP };
   }
   else if (rt === 'sa_block') {
-    // Sinusarrest/SA-Block II: periodischer Ausfall von P UND QRS (Pause = Vielfaches der PP)
+    // SA-Block II° (Typ II): periodischer Ausfall von P UND QRS, Pause = genau 2 × PP
     let t = 0.3, count = 0;
     while (t < durationSec) {
       count++;
@@ -1240,9 +1308,19 @@ function buildBeatPlan(card, durationSec) {
       t += baseRr;
     }
   }
+  else if (rt === 'sinus_arrest') {
+    // Sinusarrest: Pause ohne festen Bezug zum PP-Intervall (hier 2,55 × PP), danach Neubeginn des Sinusrhythmus
+    let t = 0.3, count = 0;
+    while (t < durationSec) {
+      count++;
+      pEvents.push({ t });
+      qrsEvents.push({ t: t + prSec, width: qrsW });
+      t += (count % 4 === 3) ? baseRr * 2.55 : baseRr;
+    }
+  }
   else if (rt === 'wenckebach') {
-    // 4:3-Periodik: PR nimmt zu (160→220→280), dann Ausfall
-    const prCycle = [0.16, 0.22, 0.28];
+    // 4:3-Periodik: PR nimmt zu, der Zuwachs wird kleiner (160→260→310 ms: +100, +50) → RR verkürzt sich vor dem Ausfall
+    const prCycle = [0.16, 0.26, 0.31];
     let t = 0.3, idx = 0;
     while (t < durationSec) {
       pEvents.push({ t });
@@ -1274,8 +1352,9 @@ function buildBeatPlan(card, durationSec) {
     for (let t = 0.55; t < durationSec; t += vRr) qrsEvents.push({ t, width: qrsW });
   }
   else if (rt === 'vt') {
-    // breite QRS, regelmäßig, keine P
+    // breite QRS, regelmäßig; optional dissoziierte Sinus-P-Wellen (AV-Dissoziation)
     for (let t = 0.2; t < durationSec; t += baseRr) qrsEvents.push({ t, width: qrsW });
+    if (card.dissocAtrialRate) { const aRr = 60 / card.dissocAtrialRate; for (let t = 0.45; t < durationSec; t += aRr) pEvents.push({ t }); }
   }
   return { pEvents, qrsEvents };
 }
@@ -1298,6 +1377,8 @@ function genBeatBased(leadName, durationSec, card) {
   if (card.t_per_lead && card.t_per_lead[leadName] !== undefined) opts.tAmp = card.t_per_lead[leadName];
   if (card.qrs_per_lead && card.qrs_per_lead[leadName]) Object.assign(opts, card.qrs_per_lead[leadName]);
   if (card.delta) opts.delta = card.delta;
+  const lobes = morphLobes(card, leadName, state.axis);
+  if (lobes) { opts.lobes = lobes; if (card.morph.tDisc) opts.tDisc = card.morph.tDisc; }
 
   for (const pe of plan.pEvents) addGauss(trace, pe.t, 0.09, 0.15 * pFac);
   // retrograde P-Welle (negativ in II/III/aVF), Achse ~ −90°
@@ -1418,7 +1499,7 @@ function genMat(leadName, durationSec, card) {
     const pAxis = pAxes[Math.floor(rand() * pAxes.length)];
     const pFac = isLimb ? projectVector(1, pAxis, LIMB_ANGLES[leadName]) : (leadName === 'V1' ? 0.12 : 0.15);
     addGauss(trace, t, 0.085, 0.15 * pFac);
-    const qStart = t + 0.15;
+    const qStart = t + 0.12 + rand() * 0.08; // variable PR-Zeit (120–200 ms) je Fokus
     qrsTimes.push(qStart);
     addQrsT(trace, qStart, qrsW, qtSec, f);
     t += meanRr * (0.6 + rand() * 0.8); // unregelmäßig
@@ -1665,11 +1746,131 @@ function measureSignal(leadTraces) {
     envCV = meanW > 0 ? Math.sqrt(varW) / meanW : 0;
   }
 
+  // RR-Folge und PR je Schlag (letzter P-Gipfel 60–500 ms vor dem R-Gipfel; −1 = keine P-Welle zuordenbar)
+  const rrList = [];
+  for (let i = 1; i < peaks.length; i++) rrList.push((peaks[i] - peaks[i-1]) / SAMPLE_RATE);
+  const prList = peaks.map(r => { let best = -1; for (const p of pPeaks) { const d = (r - p) / SAMPLE_RATE; if (d >= 0.06 && d <= 0.5) best = d; } return best; });
+
   return { hrMeasured, cv, pPolarity, qrsWidth, nBeats: peaks.length,
            pCount: pPeaks.length, pBeforeQrsCount, atrialRate, atrialRateShort, flutterRate,
-           maxAbs, rms, pauseRatio, ampCV, envCV, prInterval,
+           maxAbs, rms, pauseRatio, ampCV, envCV, prInterval, peaks, rrList, prList,
            firstR: peaks.length > 0 ? peaks[0] : -1 };
 }
+
+/* =========================================================================
+   MORPHOLOGIE- UND RHYTHMUSKRITERIEN DER LERNKARTEN
+   Prüfen die Aussagen der Karten am erzeugten Signal, unabhängig von den
+   Erzeugungsparametern (globaler QRS-Beginn/-Ende aus allen 12 Ableitungen).
+   Jede Prüfung hat im QM-Selbsttest eine Gegenprobe, an der sie scheitern muss.
+   ========================================================================= */
+function globalQrsBounds(lt, rIdx) {
+  const n = lt.I.trace.length, win = Math.floor(0.2 * SAMPLE_RATE);
+  const lo = Math.max(1, rIdx - win), hi = Math.min(n - 2, rIdx + win);
+  const s = new Float32Array(hi - lo); let mx = 0, iMax = 0;
+  for (let i = lo; i < hi; i++) {
+    let v = 0; for (const L of ALL_LEADS) v += Math.abs(lt[L].trace[i + 1] - lt[L].trace[i]);
+    s[i - lo] = v; if (v > mx) { mx = v; iMax = i - lo; }
+  }
+  // Beginn mit niedriger Schwelle (erfasst auch kleine septale q-Zacken), Ende mit höherer Schwelle
+  const thrOn = mx * 0.03, thrOff = mx * 0.08, gap = Math.floor(0.012 * SAMPLE_RATE);
+  let on = iMax, off = iMax, g = 0;
+  for (let i = iMax; i >= 0; i--) { if (s[i] > thrOn) { on = i; g = 0; } else if (++g > gap) break; }
+  g = 0;
+  for (let i = iMax; i < s.length; i++) { if (s[i] > thrOff) { off = i; g = 0; } else if (++g > gap) break; }
+  return { on: lo + on, off: lo + off };
+}
+function refBeat(m) { return (m.peaks && m.peaks.length > 2) ? m.peaks[1] : (m.peaks && m.peaks.length ? m.peaks[0] : -1); }
+// QRS-Ausschnitt relativ zur Grundlinie (Mittel der 4–20 ms vor QRS-Beginn, PQ-Strecke)
+function qrsSeg(lt, lead, b) {
+  const tr = lt[lead].trace, a = Math.max(0, b.on - Math.floor(0.020 * SAMPLE_RATE)), z = Math.max(1, b.on - Math.floor(0.004 * SAMPLE_RATE));
+  let base = 0; for (let i = a; i < z; i++) base += tr[i]; base /= Math.max(1, z - a);
+  const out = []; for (let i = b.on; i <= b.off; i++) out.push(tr[i] - base); return out;
+}
+function rrGroups(m) {
+  // Gruppen zwischen Pausen (RR > 1,4 × Median-RR); liefert Indizes der Schläge je Gruppe
+  const rr = m.rrList || []; if (rr.length < 3) return [];
+  const med = [...rr].sort((a, b) => a - b)[Math.floor(rr.length / 2)];
+  const groups = []; let cur = [0];
+  for (let i = 0; i < rr.length; i++) { if (rr[i] > 1.4 * med) { groups.push(cur); cur = [i + 1]; } else cur.push(i + 1); }
+  groups.push(cur);
+  return groups.filter((g, k) => k > 0 && k < groups.length - 1); // nur vollständige Gruppen (vor und nach Pause begrenzt)
+}
+const MORPH_CHECKS = {
+  noLateralQ(m, lt) {
+    const r = refBeat(m); if (r < 0) return { expert: 'Morphologe', label: 'Keine septalen q-Zacken in I, aVL, V5, V6', pass: false, detail: 'kein Schlag erkannt' };
+    const b = globalQrsBounds(lt, r), n35 = Math.floor(0.035 * SAMPLE_RATE); let pass = true; const det = [];
+    for (const L of ['I', 'aVL', 'V5', 'V6']) { const s = qrsSeg(lt, L, b); let mn = 0; for (let i = 0; i < Math.min(n35, s.length); i++) mn = Math.min(mn, s[i]); if (mn < -0.05) pass = false; det.push(L + ':' + mn.toFixed(2)); }
+    return { expert: 'Morphologe', label: 'Keine septalen q-Zacken in I, aVL, V5, V6', pass, detail: 'tiefster Wert in den ersten 35 ms (mV) ' + det.join('  ') };
+  },
+  terminalSLateral(m, lt) {
+    const r = refBeat(m); if (r < 0) return { expert: 'Morphologe', label: 'Breite terminale S-Zacke in I, aVL, V5, V6', pass: false, detail: 'kein Schlag erkannt' };
+    const b = globalQrsBounds(lt, r); let pass = true; const det = [];
+    for (const L of ['I', 'aVL', 'V5', 'V6']) { const s = qrsSeg(lt, L, b), st = Math.floor(s.length * 0.55); let mn = 0, neg = 0; for (let i = st; i < s.length; i++) { mn = Math.min(mn, s[i]); if (s[i] < -0.04) neg++; }
+      const negMs = neg * 1000 / SAMPLE_RATE; if (mn > -0.12 || negMs < 30) pass = false; det.push(L + ':' + mn.toFixed(2) + '/' + Math.round(negMs) + 'ms'); }
+    return { expert: 'Morphologe', label: 'Breite terminale S-Zacke in I, aVL, V5, V6', pass, detail: 'Tiefe / Dauer im letzten QRS-Drittel ' + det.join('  ') };
+  },
+  rPrimeV1(m, lt) {
+    const r = refBeat(m); if (r < 0) return { expert: 'Morphologe', label: "rSR' in V1 (R' höher als r)", pass: false, detail: 'kein Schlag erkannt' };
+    const s = qrsSeg(lt, 'V1', globalQrsBounds(lt, r)); const mx = [];
+    for (let i = 1; i < s.length - 1; i++) if (s[i] > 0.08 && s[i] >= s[i - 1] && s[i] > s[i + 1]) mx.push(i);
+    let pass = false, det = 'positive Gipfel: ' + mx.length;
+    if (mx.length >= 2) { const a = mx[0], z = mx[mx.length - 1]; let mn = Infinity; for (let i = a; i <= z; i++) mn = Math.min(mn, s[i]); pass = (mn < s[a] - 0.15) && (s[z] >= s[a]); det += ' · r ' + s[a].toFixed(2) + ' · S ' + mn.toFixed(2) + " · R' " + s[z].toFixed(2) + ' mV'; }
+    return { expert: 'Morphologe', label: "rSR' in V1 (R' höher als r)", pass, detail: det };
+  },
+  negConcordance(m, lt) {
+    const r = refBeat(m); if (r < 0) return { expert: 'Elektrophysiologe', label: 'Negative Konkordanz V1–V6 (keine RS-Komplexe)', pass: false, detail: 'kein Schlag erkannt' };
+    // RS-Komplex = positive Zacke VOR dem negativen Tiefpunkt; QS = kein R vor dem Tiefpunkt (danach folgende T-Welle zählt nicht)
+    const b = globalQrsBounds(lt, r); let pass = true; const det = [];
+    for (const L of PRECORDIAL_LEADS) { const s = qrsSeg(lt, L, b); let iMin = 0; for (let i = 1; i < s.length; i++) if (s[i] < s[iMin]) iMin = i;
+      let rBefore = 0; for (let i = 0; i < iMin; i++) rBefore = Math.max(rBefore, s[i]);
+      if (rBefore >= 0.15 || s[iMin] > -0.3) pass = false; det.push(L + ':R ' + rBefore.toFixed(2) + '/S ' + s[iMin].toFixed(2)); }
+    return { expert: 'Elektrophysiologe', label: 'Negative Konkordanz V1–V6 (keine RS-Komplexe)', pass, detail: det.join('  ') };
+  },
+  northwestAxis(m, lt) {
+    const r = refBeat(m); if (r < 0) return { expert: 'Vektor-Befunder', label: 'Nordwest-Achse (−90° bis ±180°)', pass: false, detail: 'kein Schlag erkannt' };
+    const b = globalQrsBounds(lt, r); const net = L => qrsSeg(lt, L, b).reduce((a, v) => a + v, 0);
+    const ax = Math.round(Math.atan2(net('aVF'), net('I')) * 180 / Math.PI);
+    return { expert: 'Vektor-Befunder', label: 'Nordwest-Achse (−90° bis ±180°)', pass: ax <= -90 && ax >= -180, detail: 'gemessen ' + ax + '° (Nettoflächen I/aVF)' };
+  },
+  rrShortening(m) {
+    const gs = rrGroups(m).filter(g => g.length >= 3); let pass = gs.length > 0; const det = [];
+    for (const g of gs) { const rr = []; for (let k = 1; k < g.length; k++) rr.push(m.rrList[g[k] - 1]); for (let k = 1; k < rr.length; k++) if (!(rr[k] < rr[k - 1] - 0.01)) pass = false; det.push(rr.map(x => Math.round(x * 1000)).join('→')); }
+    return { expert: 'Rhythmologe', label: 'RR verkürzt sich innerhalb der Gruppe bis zum Ausfall', pass, detail: gs.length ? 'RR je Gruppe (ms): ' + det.join(' | ') : 'keine vollständige Gruppe erkannt' };
+  },
+  prIncreasing(m) {
+    const gs = rrGroups(m).filter(g => g.length >= 2); let pass = gs.length > 0; const det = [];
+    for (const g of gs) { const pr = g.map(i => m.prList[i]); if (pr.some(x => x < 0)) { pass = false; det.push('P fehlt'); continue; } for (let k = 1; k < pr.length; k++) if (!(pr[k] > pr[k - 1] + 0.02)) pass = false; det.push(pr.map(x => Math.round(x * 1000)).join('→')); }
+    return { expert: 'Rhythmologe', label: 'PR nimmt innerhalb der Gruppe zu, kürzeste PR nach der Pause', pass, detail: gs.length ? 'P–R-Gipfelabstand je Gruppe (ms): ' + det.join(' | ') : 'keine vollständige Gruppe erkannt' };
+  },
+  prConstant(m) {
+    const pr = (m.prList || []).filter(x => x >= 0); const rng = pr.length ? Math.max(...pr) - Math.min(...pr) : 1;
+    return { expert: 'Rhythmologe', label: 'PR konstant vor und nach dem Ausfall', pass: pr.length >= 3 && rng <= 0.02, detail: 'Spannweite der P–R-Abstände ' + Math.round(rng * 1000) + ' ms (' + pr.length + ' Schläge)' };
+  },
+  noOrganizedP(m) {
+    // Geordnete Vorhoferregung (Sinus, fokale AT) zeigt sich als P-Welle vor (fast) jedem QRS mit fester PR-Zeit.
+    // Fehlt diese Kopplung (wenige zuordenbare P oder stark streuende PR), liegt keine reguläre P-Welle vor.
+    const n = (m.prList || []).length, pr = (m.prList || []).filter(x => x >= 0);
+    const rng = pr.length ? Math.max(...pr) - Math.min(...pr) : 0;
+    const pass = n >= 3 && (pr.length < n * 0.5 || rng > 0.06);
+    return { expert: 'Elektrophysiologe', label: 'Keine regulären P-Wellen (keine feste P-QRS-Kopplung)', pass,
+      detail: 'P vor QRS zuordenbar: ' + pr.length + '/' + n + (pr.length ? ' · Spannweite P–R ' + Math.round(rng * 1000) + ' ms' : '') };
+  },
+  pauseMultiple(m) {
+    const r = m.pauseRatio;
+    return { expert: 'Rhythmologe', label: 'Pause = genau 2 × Grundintervall', pass: r >= 1.9 && r <= 2.1, detail: 'längstes RR / Median-RR = ' + r.toFixed(2) };
+  },
+  pauseNotMultiple(m) {
+    const r = m.pauseRatio, d = Math.abs(r - Math.round(r));
+    return { expert: 'Rhythmologe', label: 'Pause ohne ganzzahligen Bezug zum Grundintervall', pass: r >= 1.6 && d >= 0.2, detail: 'längstes RR / Median-RR = ' + r.toFixed(2) + ' (Abstand zur nächsten ganzen Zahl ' + d.toFixed(2) + ')' };
+  }
+};
+// Gegenproben: Kriterium × Karte, an der das Kriterium scheitern MUSS
+const GEGENPROBEN = [
+  ['noLateralQ', 'sinus_normal'], ['terminalSLateral', 'lbbb'], ['rPrimeV1', 'sinus_normal'],
+  ['negConcordance', 'sinus_normal'], ['northwestAxis', 'sinus_normal'],
+  ['rrShortening', 'av_block_2_mobitz2'], ['prIncreasing', 'av_block_2_mobitz2'], ['prConstant', 'av_block_2_wenckebach'],
+  ['pauseMultiple', 'sinus_arrest'], ['pauseNotMultiple', 'sa_block_2'], ['noOrganizedP', 'sinus_normal']
+];
 
 function measureQrsWidthForLead(sig, rIdx) {
   // Flankenbasiert: QRS hat steile Anstiege, Grundlinie/P/T sind flach
@@ -1818,11 +2019,9 @@ function runValidator(card, leadTraces) {
         pass: m.pCount >= 3, detail: `P-Wellen erkannt: ${m.pCount}` } ];
   }
   else if (t === 'afib') {
-    // keine P-Wellen, unregelmäßig, schmale QRS
+    // keine geordnete Vorhoferregung, unregelmäßig, schmale QRS
     checks = [
-      { expert: 'Elektrophysiologe', label: 'Keine regulären P-Wellen',
-        pass: m.atrialRate === 0 || m.atrialRate > 250,
-        detail: m.atrialRate === 0 ? 'keine P detektiert' : `Grundlinie ~${m.atrialRate}/min (f-Wellen)` },
+      MORPH_CHECKS.noOrganizedP(m, leadTraces),
       { expert: 'Rhythmologe', label: 'Absolut unregelmäßige RR',
         pass: m.cv >= 0.12, detail: `RR-Variationskoeffizient ${(m.cv*100).toFixed(1)} %` },
       chkHr(m, v.hr_range),
@@ -1994,6 +2193,8 @@ function runValidator(card, leadTraces) {
   else {
     checks = [ chkHr(m, v.hr_range || [0,300]) ];
   }
+  // Karten-spezifische Morphologie- und Rhythmuskriterien
+  if (v.morph) for (const k of v.morph) checks.push(MORPH_CHECKS[k](m, leadTraces));
 
   const passCount = checks.filter(c => c.pass).length;
   const score = Math.round((passCount / checks.length) * 15);
@@ -2332,22 +2533,40 @@ function syncControls() {
   updateQtc();
   updateAxisButtons();
 }
+// QTc-Bewertung nach AHA/ACCF/HRS 2009 (Rautaharju et al.): verlängert ≥ 450 ms (Männer) / ≥ 460 ms (Frauen),
+// deutlich verlängert ≥ 500 ms, kurz ≤ 390 ms. Bazett überkorrigiert bei hoher Frequenz, Fridericia weniger.
+let qtcSex = 'm';
+function qtcBewertung(qtc) {
+  const lim = qtcSex === 'w' ? 460 : 450;
+  if (qtc <= 390) return { txt: 'kurz', col: 'var(--warn)' };
+  if (qtc >= 500) return { txt: 'deutlich verlängert', col: 'var(--bad)' };
+  if (qtc >= lim) return { txt: 'verlängert', col: 'var(--bad)' };
+  return { txt: 'normal', col: 'var(--ok)' };
+}
 function updateQtc() {
-  const el = document.getElementById('qtc-val');
-  if (!state.hr || state.hr <= 0 || !state.qt) { el.textContent = '–'; el.style.color = ''; return; }
-  const qtc = Math.round(state.qt / Math.sqrt(60 / state.hr));
-  let bewertung, farbe;
-  if (qtc < 350) { bewertung = 'kurz'; farbe = 'var(--warn)'; }
-  else if (qtc < 440) { bewertung = 'normal'; farbe = 'var(--ok)'; }
-  else if (qtc < 470) { bewertung = 'grenzwertig'; farbe = 'var(--warn)'; }
-  else { bewertung = 'verlängert'; farbe = 'var(--bad)'; }
-  el.textContent = qtc + ' ms (' + bewertung + ')';
-  el.style.color = farbe;
+  const el = document.getElementById('qtc-val'), elF = document.getElementById('qtcf-val');
+  if (!state.hr || state.hr <= 0 || !state.qt) { el.textContent = elF.textContent = '–'; el.style.color = elF.style.color = ''; return; }
+  const rr = 60 / state.hr;
+  const qb = Math.round(state.qt / Math.sqrt(rr)), qf = Math.round(state.qt / Math.cbrt(rr));
+  const bb = qtcBewertung(qb), bf = qtcBewertung(qf);
+  el.textContent = qb + ' ms (' + bb.txt + ')'; el.style.color = bb.col;
+  elF.textContent = qf + ' ms (' + bf.txt + ')'; elF.style.color = bf.col;
+}
+// Lagetyp nach deutscher Einteilung (DocCheck Flexikon, Stand 27.08.2026); Nordwest-Achse nach LITFL (−90° bis ±180°)
+function lagetypOf(ax) {
+  if (ax < -90) return { key: 'nw', name: 'Nordwest-Achse (extreme Achsabweichung)' };
+  if (ax < -30) return { key: 'uelt', name: 'überdrehter Linkstyp' };
+  if (ax < 30) return { key: 'lt', name: 'Linkstyp' };
+  if (ax < 60) return { key: 'it', name: 'Indifferenztyp' };
+  if (ax < 90) return { key: 'st', name: 'Steiltyp' };
+  if (ax <= 120) return { key: 'rt', name: 'Rechtstyp' };
+  return { key: 'uert', name: 'überdrehter Rechtstyp' };
 }
 function updateAxisButtons() {
-  document.querySelectorAll('.axis-btn').forEach(b => {
-    b.classList.toggle('active', parseInt(b.dataset.axis) === state.axis);
-  });
+  const lt = lagetypOf(state.axis);
+  document.querySelectorAll('.axis-btn[data-lt]').forEach(b => b.classList.toggle('active', b.dataset.lt === lt.key));
+  const el = document.getElementById('lagetyp-val');
+  if (el) el.textContent = lt.name + ((state.axis === 30 || state.axis === 60 || state.axis === 90 || state.axis === -30) ? ' (Grenzwert)' : '');
 }
 function updateFeatures() {
   const card = VISITENKARTEN[state.pathologyId];
@@ -2456,7 +2675,7 @@ const DRUGS = {
                   fx: { terminatesTorsade: true } },
   kcl:          { name: 'Kaliumchlorid i.v.', unit: 's', effectDuration: 240, baselineDefault: 12, baselineAdjustable: true,
                   pk: { onsetT50: 30, hillN: 2, decayTPeak: 90, decayTHalf: 600 }, windowDur: 6, playbackRate: 18,
-                  doses: [{ mg: 1, label: 'Bolus', lvl: 1.5 }, { mg: 2, label: '100-ml-Infusion', lvl: 0.85 }], doseRef: 1, electrolyte: 'k',
+                  doses: [{ mg: 1, label: 'zu schnelle Gabe (Fehlanwendung)', lvl: 1.5 }, { mg: 2, label: '100-ml-Infusion', lvl: 0.85 }], doseRef: 1, doseDefault: 2, electrolyte: 'k',
                   action: 'i.v.: hebt den Serum-Kaliumspiegel → Hyperkaliämie-Veränderungen (bzw. Ausgleich einer Hypokaliämie)',
                   fx: {} },
   calcium:      { name: 'Kalziumglukonat i.v.', unit: 's', effectDuration: 200, baselineDefault: 12, baselineAdjustable: true,
@@ -2481,13 +2700,13 @@ function gaussM(x, amp, width) { return amp * Math.exp(-0.5 * (x / width) * (x /
 // Didaktische Kernaussagen (Pearls) – belegt, für die Phasenbeschreibung
 const PEARLS = {
   adenosine: 'HWZ < 10 s (Abbau in Erythrozyten) – Patient über kurzes „Herzstillstand"-Gefühl vorwarnen. Wirkt unabhängig vom Ausgangsrhythmus auf den AV-Knoten.',
-  atropine: 'i.v. < 0,5 mg → paradoxe Sinusbremse (zentral-vagoton); aktuelle Erstlinie 1 mg. Unwirksam bei infranodalem AV-Block III° und Mobitz II.',
+  atropine: 'ERC 2025: bei Bradykardie mit Warnzeichen 500 µg i.v. (i.o.), bei Bedarf alle 3–5 min wiederholen bis insgesamt 3 mg (die AHA 2025 empfiehlt 1 mg als Einzeldosis). Dosen < 0,5 mg können die Frequenz paradox weiter senken. Unwirksam bei infranodalem Block (Mobitz II, AV-Block III° mit breitem QRS) – Schrittmacherstimulation nicht verzögern.',
   metoprolol: 'β1-Blockade verlangsamt Sinus- und AV-Knoten; bremst die Kammerfrequenz bei Vorhofflimmern/-flattern, terminiert AV-Knoten-abhängige SVT.',
   verapamil: 'Ca-Kanal-Block am AV-Knoten; terminiert AVNRT/orthodrome AVRT, bremst Kammerfrequenz bei VHF. Bei Breitkomplextachykardie unklarer Genese (mögliche Kammertachykardie) Blutdruckabfall/Kreislaufkollaps möglich.',
   amiodarone: 'Akut i.v. v. a. AV-nodal (β + Ca). Verlängert die QT-Zeit (Repolarisation) homogen über alle Ableitungen → trotz QT-Verlängerung selten Torsade. Ausgeprägter mit Aufsättigung.',
   epinephrine: 'β1: steigert Automatie, Sinus- und AV-Knoten-Leitung sowie Ersatzrhythmus-Frequenz; α: Vasokonstriktion. Reanimations- und Bradykardie-Substanz.',
   ajmaline: 'Na-Kanal-Block (Klasse Ia): verlangsamt His-Purkinje-Leitung → QRS ↑; demaskiert Brugada-Muster. Cave bei vorbestehend verlängertem HV-Intervall.',
-  isoprenaline: 'Reiner β-Agonist: steigert Sinusfrequenz und Ersatzrhythmus; Einsatz bei Bradykardie, Torsade-Prophylaxe und elektrischem Sturm.',
+  isoprenaline: 'Reiner β-Agonist: steigert Sinusfrequenz und Ersatzrhythmus. Einsatz: Bradykardie als Zweitlinie nach Atropin (ERC 2025, Start 5 µg/min); erworbene, pausenabhängige Torsade de pointes (Frequenzanhebung verkürzt die QT-Zeit); elektrischer Sturm bei idiopathischem Kammerflimmern (ESC 2022) und beim Brugada-Syndrom. Vorsicht bzw. meiden beim angeborenen Long-QT-Syndrom (Typ 1 und 2): adrenerge Stimulation kann dort Torsade auslösen.',
   magnesium: 'Erstlinie bei Torsade de pointes – wirkt unabhängig vom Serum-Magnesiumspiegel. Unterdrückt die frühen Nachdepolarisationen (Auslöser), verkürzt dabei die QT-Zeit aber nicht (anderer Wirkmechanismus). 2-g-Bolus beendet die meisten Episoden binnen Minuten.',
   kcl: 'EKG-Veränderungen beginnen an der T-Welle (zeltförmig) und wandern „rückwärts": P-Abflachung + PR-Verlängerung → QRS-Verbreiterung → Sinuswelle → Kammerflimmern. Cave: rasche i.v.-Bolusgabe ist gefährlich; Serumspiegel korreliert nur grob mit dem EKG.',
   calcium: 'Bei Hyperkaliämie Erstmaßnahme zur Membranstabilisierung – verschmälert den QRS und senkt das Arrhythmierisiko, ohne den Kaliumspiegel zu senken (Wirkbeginn in Minuten, ~30 min anhaltend). Eigenständig: Hyperkalzämie verkürzt die QT-Zeit, Hypokalzämie verlängert sie.',
@@ -2818,10 +3037,21 @@ let MED_TPL = null;
 function ensureMedTemplates() {
   if (MED_TPL) return;
   const sr = SAMPLE_RATE;
+  function genWithDefaults(leadName, dur, card) {
+    const snap = { hr: state.hr, pr: state.pr, qrs: state.qrs, qt: state.qt, axis: state.axis };
+    Object.assign(state, card.defaults); if (!state.hr) state.hr = 1;
+    const lead = generateLead(leadName, dur, card);
+    Object.assign(state, snap);
+    return lead;
+  }
   // QRST- und P-Morphologie einer Ableitung aus einer Visitenkarte ausschneiden
   function extractLead(cardId, leadName, useP) {
-    const card = VISITENKARTEN[cardId];
+    const card = (typeof cardId === 'string') ? VISITENKARTEN[cardId] : cardId;
+    // Vorlagen immer mit den Karten-Vorgaben erzeugen (unabhängig von den aktuellen Reglerstellungen)
+    const snap = { hr: state.hr, pr: state.pr, qrs: state.qrs, qt: state.qt, axis: state.axis };
+    Object.assign(state, card.defaults); if (!state.hr) state.hr = 1;
     const lead = generateLead(leadName, 6, card); // { trace, beatTimes, pEvents }
+    Object.assign(state, snap);
     const tr = lead.trace;
     const mids = (lead.beatTimes || []).filter(t => t > 1.0 && t < 5.0);
     const beatT = mids[Math.floor(mids.length / 2)] || (lead.beatTimes && lead.beatTimes[1]) || 1.5;
@@ -2840,7 +3070,7 @@ function ensureMedTemplates() {
   }
   // Eine Flatterwellen-Periode (Sägezahn) der Ableitung, trogzentriert für nahtloses Kacheln
   function extractFlutterWave(leadName) {
-    const lead = generateLead(leadName, 8, VISITENKARTEN['atrial_flutter_typical']);
+    const lead = genWithDefaults(leadName, 8, VISITENKARTEN['atrial_flutter_typical']);
     const tr = lead.trace, bt = (lead.beatTimes || []).slice().sort((a, b) => a - b);
     let gA = 1.0, best = 0;
     for (let k = 0; k < bt.length - 1; k++) { const d = bt[k + 1] - bt[k]; if (d > best) { best = d; gA = bt[k]; } }
@@ -2853,7 +3083,7 @@ function ensureMedTemplates() {
   }
   // Reine Vorhof-Flimmer-Grundlinie der Ableitung aus den QRST-Lücken zusammensetzen
   function extractFibBaseline(leadName) {
-    const lead = generateLead(leadName, 10, VISITENKARTEN['atrial_fibrillation']);
+    const lead = genWithDefaults(leadName, 10, VISITENKARTEN['atrial_fibrillation']);
     const tr = lead.trace, bt = (lead.beatTimes || []).slice().sort((a, b) => a - b);
     const seg = [], post = Math.round(0.22 * sr), pre = Math.round(0.07 * sr);
     for (let k = 0; k < bt.length - 1; k++) { const a = Math.round(bt[k] * sr) + post, b = Math.round(bt[k + 1] * sr) - pre; for (let i = a; i < b; i++) if (tr[i] != null) seg.push(tr[i]); }
@@ -2864,7 +3094,7 @@ function ensureMedTemplates() {
   try {
     for (const L of ALL_LEADS) {
       const s = extractLead('sinus_normal', L, true);
-      const v = extractLead('vt_monomorphic', L, false);
+      const v = extractLead(Object.assign({}, VISITENKARTEN.vt_monomorphic, { dissocAtrialRate: 0 }), L, false); // ohne dissoziierte P-Wellen
       const f = extractLead('focal_atrial_tachycardia', L, true); // ektope P-Welle
       leads[L] = { p: s.p, pCenter: s.pCenter, qrstNarrow: s.qrst, qrstNarrowCenter: s.qrstCenter,
                    qrstWide: v.qrst, qrstWideCenter: v.qrstCenter, focalP: f.p, focalPCenter: f.pCenter,
@@ -3269,7 +3499,7 @@ function selectRhythm(rhythmId) {
 function selectDrug(drugId) {
   medState.drugId = drugId;
   const D = DRUGS[drugId];
-  const refDose = D.doses.find(d => d.mg === D.doseRef);
+  const refDose = D.doses.find(d => d.mg === (D.doseDefault !== undefined ? D.doseDefault : D.doseRef)); // Voreinstellung (z. B. KCl: Infusion statt Fehlanwendung)
   medState.dose = refDose ? refDose.mg : D.doses[Math.min(1, D.doses.length - 1)].mg;
   medState.admTime = D.baselineDefault;
   medState.currentTime = 0; medSetPlay(false);
@@ -3401,6 +3631,7 @@ document.getElementById('pathology').addEventListener('change', (e) => selectPat
   });
 });
 
+document.getElementById('qtcSex').addEventListener('change', (e) => { qtcSex = e.target.value; updateQtc(); });
 document.getElementById('qtCoupled').addEventListener('change', (e) => {
   state.qtCoupled = e.target.checked;
   if (state.qtCoupled) qtcRef = state.qt * Math.sqrt(state.hr / 60); // aktuelle QT als Referenz übernehmen
@@ -3514,7 +3745,8 @@ function runQmCore() {
   const snap = { pathologyId: state.pathologyId, hr: state.hr, pr: state.pr, qrs: state.qrs, qt: state.qt, axis: state.axis };
   const res = { cards: { pass: 0, total: 0, fails: [] }, einthoven: { dev: 0, ok: false }, rates: { pass: 0, total: 0, fails: [] }, plaus: { pass: 0, total: 0, worst: 0, worstWhere: '', fails: [] } };
   // Rhythmen ohne diskrete P-QRS-T-Schläge (keine sinnvolle TP-Strecke) → von der Sprungstellen-Prüfung ausgenommen
-  const plausSkip = ['atrial_fibrillation', 'ventricular_fibrillation', 'asystole', 'atrial_flutter_typical', 'atrial_flutter_atypical', 'multifocal_atrial_tachycardia', 'torsade_de_pointes'];
+  const plausSkip = ['atrial_fibrillation', 'ventricular_fibrillation', 'asystole', 'atrial_flutter_typical', 'atrial_flutter_cw', 'multifocal_atrial_tachycardia', 'torsade_de_pointes'];
+  const cardLeads = {}, cardMeas = {};
   // 1) Selbst-Konsistenz aller Visitenkarten (Signal ↔ Spezifikation)
   for (const [id, card] of Object.entries(VISITENKARTEN)) {
     state.pathologyId = id;
@@ -3522,6 +3754,7 @@ function runQmCore() {
     if (state.hr === 0) state.hr = 1;
     const leads = generateAllLeads(card, 10);
     const r = runValidator(card, leads);
+    cardLeads[id] = leads; cardMeas[id] = r.measured;
     res.cards.total++;
     if (r.score === 15) res.cards.pass++; else res.cards.fails.push(card.name + ' (' + r.score + '/15)');
     // 1b) Fehlersuche-Algorithmus: physiologische Plausibilität (keine Sprungstellen zwischen den QRS)
@@ -3548,6 +3781,14 @@ function runQmCore() {
     const rate = medVentRate(s.beats, 11, 8);
     res.rates.total++;
     if (Math.abs(rate - exp) <= Math.max(8, exp * 0.12)) res.rates.pass++; else res.rates.fails.push(rh + ': ' + rate + '/min (erw. ~' + exp + ')');
+  }
+  // 4) Gegenproben: jedes Morphologie-/Rhythmuskriterium muss an einer unpassenden Karte scheitern
+  res.gegen = { pass: 0, total: 0, fails: [] };
+  for (const [k, id] of GEGENPROBEN) {
+    if (!cardLeads[id] || !MORPH_CHECKS[k]) continue;
+    const c = MORPH_CHECKS[k](cardMeas[id], cardLeads[id]);
+    res.gegen.total++;
+    if (!c.pass) res.gegen.pass++; else res.gegen.fails.push(c.label + ' an „' + VISITENKARTEN[id].name + '“ fälschlich erfüllt');
   }
   // Selbsttest des Detektors ausführen (vor der State-Wiederherstellung)
   res.detProof = detectorSelfCheck();
@@ -3594,7 +3835,8 @@ function renderQmDashboard() {
   const plausOk = c.plaus.pass === c.plaus.total;
   const detOk = !c.detProof || c.detProof.ok;
   const regOk = !qmRegression || qmRegression.errors === 0;
-  const allOk = cardOk && rateOk && c.einthoven.ok && plausOk && detOk && regOk;
+  const gegenOk = !c.gegen || c.gegen.pass === c.gegen.total;
+  const allOk = cardOk && rateOk && c.einthoven.ok && plausOk && detOk && regOk && gegenOk;
   let h = '<div class="qm-overall ' + (allOk ? 'ok' : 'fail') + '">' + (allOk ? '✓ Alle automatisch geprüften Sicherheitsmechanismen bestanden' : '⚠ Abweichung festgestellt – siehe unten') + '</div>';
   h += '<div class="qm-gate">Tor 3 · Verhalten der App (automatisiert, läuft bei jedem Laden)</div>';
   h += qmRow('Selbst-Konsistenz (Signal ↔ Spezifikation)', c.cards.pass + '/' + c.cards.total + ' Visitenkarten konsistent', cardOk);
@@ -3604,6 +3846,10 @@ function renderQmDashboard() {
   if (c.rates.fails.length) h += '<div class="qm-detail">' + c.rates.fails.join(' · ') + '</div>';
   h += qmRow('Physiologische Plausibilität (keine Sprungstellen)', c.plaus.pass + '/' + c.plaus.total + ' EKGs ohne unphysiologische Diskontinuität – max. Slew ' + (c.plaus.worst * 1000).toFixed(0) + ' µV/2ms zwischen den QRS', plausOk);
   if (c.plaus.fails.length) h += '<div class="qm-detail">' + c.plaus.fails.join(' · ') + '</div>';
+  if (c.gegen) {
+    h += qmRow('Gegenproben (jedes Kartenkriterium kann scheitern)', c.gegen.pass + '/' + c.gegen.total + ' Kriterien an unpassenden Karten korrekt nicht erfüllt', gegenOk, gegenOk ? '🔬' : '⚠️');
+    if (c.gegen.fails.length) h += '<div class="qm-detail">' + c.gegen.fails.join(' · ') + '</div>';
+  }
   if (c.detProof) h += qmRow('Selbsttest des Detektors („wer prüft den Prüfer")', c.detProof.ok ? 'künstliche 300-µV-Sprungstelle zuverlässig erkannt (sauber ' + (c.detProof.clean * 1000).toFixed(0) + ' µV → mit Fehler ' + (c.detProof.spiked * 1000).toFixed(0) + ' µV)' : 'Detektor hat den eingebauten Testfehler NICHT erkannt', c.detProof.ok, c.detProof.ok ? '🔬' : '⚠️');
   if (qmRegression) {
     h += qmRow('Regressions-Durchlauf (alle Kombinationen)', qmRegression.runs + ' Durchläufe, ' + qmRegression.errors + ' Fehler', qmRegression.errors === 0);
